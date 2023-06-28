@@ -26,22 +26,21 @@ In your `rebar.config` file, add the dependency:
 Then, you can connect either via WebSocket or server-sent events to start receiving messages for the given topics.
 
 For example, in javascript via the `WebSocket` interface:
-```
+```js
 const webSocket = new WebSocket('ws://localhost:2080/websocket');
 webSocket.onopen = function(event) {
     webSocket.send("authorization: user:pass");
     webSocket.send("topics: topic1;topic2;topic3");
 };
-...
 ```
 
 Or via server-sent events in `curl` 
-```
+```sh
 curl 'localhost:2080/eventsource?topics=topic1;topic2;topic3'
 ```
 
 Then, all messages posted to the `/message` endpoint will be redirected to the online subscribers:
-```
+```sh
 curl -X POST -d '{"topics": ["topic1", "topic2"], "message": "text"}' 'localhost:2080/message'
 ```
 
