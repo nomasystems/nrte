@@ -1,0 +1,24 @@
+{"1.2.0",
+[{<<"cowboy">>,
+  {git,"git@github.com:ninenines/cowboy.git",
+       {ref,"22adc4de517bf54661795f6e18b6b2e62aec4140"}},
+  0},
+ {<<"cowlib">>,
+  {git,"https://github.com/ninenines/cowlib",
+       {ref,"cc04201c1d0e1d5603cd1cde037ab729b192634c"}},
+  1},
+ {<<"ebus">>,{pkg,<<"erlbus">>,<<"0.3.0">>},0},
+ {<<"njson">>,
+  {git,"git@github.com:nomasystems/njson.git",
+       {ref,"76ab40033ee977f876e7b3addca5de981ff4a9ef"}},
+  0},
+ {<<"ranch">>,
+  {git,"https://github.com/ninenines/ranch",
+       {ref,"a692f44567034dacf5efcaa24a24183788594eb7"}},
+  1}]}.
+[
+{pkg_hash,[
+ {<<"ebus">>, <<"ECD5418FF2A365A9E809F553B15B624522DAD788C49F3AEDB64017C192568810">>}]},
+{pkg_hash_ext,[
+ {<<"ebus">>, <<"45938BF8B97E26B02FE44B91D52BE333A2A82CF4220EBFEACC32588B2C84FA30">>}]}
+].

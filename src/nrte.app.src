@@ -1,0 +1,8 @@
+{application, nrte, [
+    {description, "An OTP application"},
+    {vsn, "0.0.1"},
+    {registered, []},
+    {applications, [kernel, stdlib, cowboy, ebus, njson]},
+    {mod, {nrte, []}},
+    {env, []}
+]}.
