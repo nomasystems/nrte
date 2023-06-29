@@ -12,10 +12,11 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License
 -module(nrte_websocket).
+-behaviour(cowboy_websocket).
 
 %%% INCLUDE FILES
 
-%%% WEBSOCKET EXPORTS
+%%% COWBOY WEBSOCKET EXPORTS
 -export([init/2, websocket_handle/2, websocket_info/2]).
 
 %%% CALLBACK EXPORTS
@@ -30,7 +31,7 @@
 -record(st, {user :: undefined | binary()}).
 
 %%%-----------------------------------------------------------------------------
-%%% WEBSOCKET EXPORTS
+%%% COWBOY WEBSOCKET EXPORTS
 %%%-----------------------------------------------------------------------------
 init(Req, _Opts) ->
     {cowboy_websocket, Req, #st{}}.

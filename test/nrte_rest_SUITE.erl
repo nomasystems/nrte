@@ -26,7 +26,7 @@
 %%% EXTERNAL EXPORTS
 %%%-----------------------------------------------------------------------------
 all() ->
-    [post_topic_message].
+    [post_empty_body, post_topic_message].
 
 suite() ->
     [{timetrap, {seconds, 60}}].
@@ -46,6 +46,19 @@ end_per_suite(Conf) ->
 %%%-----------------------------------------------------------------------------
 %%% TEST CASES
 %%%-----------------------------------------------------------------------------
+post_empty_body() ->
+    [{userdata, [{doc, "Tests posting an empty body"}]}].
+
+post_empty_body(_Conf) ->
+    {ok, Pid} = gun:open("localhost", 2080),
+    {ok, http} = gun:await_up(Pid),
+    StreamRef = gun:post(Pid, "/topics", #{}, <<>>),
+    receive
+        {gun_response, Pid, StreamRef, fin, 400, _Headers} -> ok
+    after 1000 -> throw(timeout)
+    end,
+    ok.
+
 post_topic_message() ->
     [{userdata, [{doc, "Tests posting a topic message"}]}].
 

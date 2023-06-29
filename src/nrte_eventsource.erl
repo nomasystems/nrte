@@ -12,10 +12,11 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License
 -module(nrte_eventsource).
+-behaviour(cowboy_loop).
 
 %%% INCLUDE FILES
 
-%%% COWBOY HANDLER EXPORTS
+%%% COWBOY LOOP EXPORTS
 -export([init/2, info/3]).
 
 %%% CALLBACK EXPORTS
@@ -26,7 +27,7 @@
 %%% RECORDS
 
 %%%-----------------------------------------------------------------------------
-%%% COWBOY HANDLER EXPORTS
+%%% COWBOY LOOP EXPORTS
 %%%-----------------------------------------------------------------------------
 init(Req, Opts) ->
     Topics = proplists:get_value(<<"topics">>, cowboy_req:parse_qs(Req)),

@@ -12,6 +12,7 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License
 -module(nrte_rest).
+-behaviour(cowboy_handler).
 
 %%% INCLUDE FILES
 
@@ -27,7 +28,12 @@
 %%%-----------------------------------------------------------------------------
 init(Req, Opts) ->
     {ok, Data, Req2} = cowboy_req:read_body(Req),
-    #{<<"topics">> := Topics, <<"message">> := Message} = njson:decode(Data),
-    lists:foreach(fun(T) -> ebus:pub(T, Message) end, Topics),
-    Req3 = cowboy_req:reply(200, #{}, <<>>, Req2),
-    {ok, Req3, Opts}.
+    case catch njson:decode(Data) of
+        #{<<"topics">> := Topics, <<"message">> := Message} when
+            is_list(Topics) andalso is_binary(Message)
+        ->
+            lists:foreach(fun(T) -> ebus:pub(T, Message) end, Topics),
+            {ok, cowboy_req:reply(200, #{}, <<>>, Req2), Opts};
+        _ ->
+            {ok, cowboy_req:reply(400, #{}, <<>>, Req2), Opts}
+    end.
