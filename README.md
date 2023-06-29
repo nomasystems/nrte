@@ -44,7 +44,7 @@ Then, all messages posted to the `/message` endpoint will be redirected to the o
 curl -X POST -d '{"topics": ["topic1", "topic2"], "message": "text"}' 'localhost:2080/message'
 ```
 
-## Bypassing the HTTP connections
+## Bypassing the HTTP connections
 
 All events are published and received through the `[erlbus](https://github.com/cabol/erlbus)` library. It is possible to directly use it along the HTTP interfaces by publishing or subscribing to the same topics.
 
