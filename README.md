@@ -29,7 +29,6 @@ For example, in javascript via the `WebSocket` interface:
 ```js
 const webSocket = new WebSocket('ws://localhost:2080/websocket');
 webSocket.onopen = function(event) {
-    webSocket.send("authorization: user:pass");
     webSocket.send("topics: topic1;topic2;topic3");
 };
 ```
@@ -44,13 +43,19 @@ Then, all messages posted to the `/message` endpoint will be redirected to the o
 curl -X POST -d '{"topics": ["topic1", "topic2"], "message": "text"}' 'localhost:2080/message'
 ```
 
+## Authentication
+
+By default nrte doesn't authenticate its users, but this can be changed by setting the `auth_type` configuration parameter to a tuple `{Mod, Fun}`. When a request arrives with an `Authorization` header, `nrte` will call `Mod:Fun(AuthorizationBinaryValue)` and use the returned `boolean()` to allow or deny access to the resource.
+
+Since some WebSocket or EventSource interfaces don't allow setting authorization headers, there's also an `/auth` endpoint that will return a one-use authentication cookie that can be used in the next connection. See the [`JS tester`](priv/tester.html) for an implementation example.
+
 ## Bypassing the HTTP connections
 
 All events are published and received through the [`erlbus`](https://github.com/cabol/erlbus) library. It is possible to directly use it along the HTTP interfaces by publishing or subscribing to the same topics.
 
 ## Support
 
-Any doubt or suggestion? Please, read the [documentation](http://nomasystems.github.io/nrte) and check out [our issue tracker](https://github.com/nomasystems/nrte/issues).
+Any doubt or suggestion? Please, check out [our issue tracker](https://github.com/nomasystems/nrte/issues).
 
 ## Contributing
 

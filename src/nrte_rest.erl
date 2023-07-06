@@ -14,19 +14,25 @@
 -module(nrte_rest).
 -behaviour(cowboy_handler).
 
-%%% INCLUDE FILES
-
 %%% COWBOY HANDLER EXPORTS
 -export([init/2]).
-
-%%% MACROS
-
-%%% RECORDS
 
 %%%-----------------------------------------------------------------------------
 %%% COWBOY HANDLER EXPORTS
 %%%-----------------------------------------------------------------------------
 init(Req, Opts) ->
+    case nrte_auth:is_authorized(Req) of
+        true -> init_authorized(Req, Opts);
+        false -> {ok, cowboy_req:reply(401, #{}, <<>>, Req), Opts}
+    end.
+
+%%%-----------------------------------------------------------------------------
+%%% INTERNAL FUNCTIONS
+%%%-----------------------------------------------------------------------------
+init_authorized(#{path := <<"/auth">>} = Req, Opts) ->
+    Req2 = nrte_auth:generate_token(Req),
+    {ok, cowboy_req:reply(200, #{}, <<>>, Req2), Opts};
+init_authorized(#{path := <<"/message">>} = Req, Opts) ->
     {ok, Data, Req2} = cowboy_req:read_body(Req),
     case catch njson:decode(Data) of
         #{<<"topics">> := Topics, <<"message">> := Message} when
@@ -36,4 +42,6 @@ init(Req, Opts) ->
             {ok, cowboy_req:reply(200, #{}, <<>>, Req2), Opts};
         _ ->
             {ok, cowboy_req:reply(400, #{}, <<>>, Req2), Opts}
-    end.
+    end;
+init_authorized(Req, Opts) ->
+    {ok, cowboy_req:reply(404, #{}, <<>>, Req), Opts}.

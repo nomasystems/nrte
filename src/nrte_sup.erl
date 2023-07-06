@@ -14,17 +14,11 @@
 -module(nrte_sup).
 -behaviour(supervisor).
 
-%%% INCLUDE FILES
-
 %%% START/STOP EXPORTS
 -export([start_link/0]).
 
 %%% SUPERVISOR EXPORTS
 -export([init/1]).
-
-%%% MACROS
-
-%%% RECORDS
 
 %%%-----------------------------------------------------------------------------
 %%% START/STOP EXPORTS
@@ -36,4 +30,5 @@ start_link() ->
 %%% SUPERVISOR EXPORTS
 %%%-----------------------------------------------------------------------------
 init(_) ->
-    {ok, {#{}, []}}.
+    ChildSpecs = [#{id => nrte_auth, start => {nrte_auth, start_link, []}}],
+    {ok, {#{}, ChildSpecs}}.

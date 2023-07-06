@@ -14,32 +14,21 @@
 -module(nrte_websocket).
 -behaviour(cowboy_websocket).
 
-%%% INCLUDE FILES
-
 %%% COWBOY WEBSOCKET EXPORTS
 -export([init/2, websocket_handle/2, websocket_info/2]).
 
 %%% CALLBACK EXPORTS
 -export([handle_ebus_message/3]).
 
-%%% EXTERNAL EXPORTS
--export([]).
-
-%%% MACROS
-
-%%% RECORDS
--record(st, {user :: undefined | binary()}).
-
 %%%-----------------------------------------------------------------------------
 %%% COWBOY WEBSOCKET EXPORTS
 %%%-----------------------------------------------------------------------------
-init(Req, _Opts) ->
-    {cowboy_websocket, Req, #st{}}.
+init(Req, Opts) ->
+    case nrte_auth:is_authorized(Req) of
+        true -> {cowboy_websocket, Req, []};
+        false -> {ok, cowboy_req:reply(401, #{}, <<>>, Req), Opts}
+    end.
 
-websocket_handle({text, <<"authorization: ", User/binary>>}, #st{user = undefined} = State) ->
-    {ok, State#st{user = User}};
-websocket_handle(_Data, #st{user = undefined}) ->
-    {stop, auth_needed};
 websocket_handle({text, <<"topics: ", Topics/binary>>}, State) ->
     TopicList = binary:split(Topics, <<";">>, [global]),
     lists:foreach(

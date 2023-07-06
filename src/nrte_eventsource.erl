@@ -14,40 +14,20 @@
 -module(nrte_eventsource).
 -behaviour(cowboy_loop).
 
-%%% INCLUDE FILES
-
 %%% COWBOY LOOP EXPORTS
 -export([init/2, info/3]).
 
 %%% CALLBACK EXPORTS
 -export([handle_ebus_message/3]).
 
-%%% MACROS
-
-%%% RECORDS
-
 %%%-----------------------------------------------------------------------------
 %%% COWBOY LOOP EXPORTS
 %%%-----------------------------------------------------------------------------
 init(Req, Opts) ->
-    Topics = proplists:get_value(<<"topics">>, cowboy_req:parse_qs(Req)),
-    TopicList = binary:split(Topics, <<";">>, [global]),
-    lists:foreach(
-        fun(T) ->
-            Handler = ebus_proc:spawn_handler(fun ?MODULE:handle_ebus_message/3, [T, self()], [link]),
-            ebus:sub(Handler, T)
-        end,
-        TopicList
-    ),
-    Req2 = cowboy_req:stream_reply(
-        200,
-        #{
-            <<"content-type">> => <<"text/event-stream">>,
-            <<"access-control-allow-origin">> => <<"*">>
-        },
-        Req
-    ),
-    {cowboy_loop, Req2, Opts}.
+    case nrte_auth:is_authorized(Req) of
+        true -> start_loop(Req, Opts);
+        false -> {ok, cowboy_req:reply(401, #{}, <<>>, Req), Opts}
+    end.
 
 info({ebus_message, {Topic, Message}}, Req, Opts) ->
     Data = [Topic, ";", Message],
@@ -59,3 +39,19 @@ info({ebus_message, {Topic, Message}}, Req, Opts) ->
 %%%-----------------------------------------------------------------------------
 handle_ebus_message(Message, Topic, Pid) ->
     Pid ! {ebus_message, {Topic, Message}}.
+
+%%%-----------------------------------------------------------------------------
+%%% INTERNAL FUNCTIONS
+%%%-----------------------------------------------------------------------------
+start_loop(Req, Opts) ->
+    Topics = proplists:get_value(<<"topics">>, cowboy_req:parse_qs(Req)),
+    TopicList = binary:split(Topics, <<";">>, [global]),
+    lists:foreach(
+        fun(T) ->
+            Handler = ebus_proc:spawn_handler(fun ?MODULE:handle_ebus_message/3, [T, self()], [link]),
+            ebus:sub(Handler, T)
+        end,
+        TopicList
+    ),
+    Req2 = cowboy_req:stream_reply(200, #{<<"content-type">> => <<"text/event-stream">>}, Req),
+    {cowboy_loop, Req2, Opts}.
