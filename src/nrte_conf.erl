@@ -11,29 +11,20 @@
 %% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 %% See the License for the specific language governing permissions and
 %% limitations under the License
--module(nrte).
--behaviour(application).
+-module(nrte_conf).
 
-%%% APPLICATION EXPORTS
--export([start/2, stop/1]).
+%%% EXTERNAL EXPORTS
+-export([auth_type/0, token_cleanup_seconds/0, token_expiration_seconds/0]).
 
 %%%-----------------------------------------------------------------------------
-%%% APPLICATION EXPORTS
+%%% EXTERNAL EXPORTS
 %%%-----------------------------------------------------------------------------
-start(_, _) ->
-    Dispatch = cowboy_router:compile([
-        {'_', [
-            {"/", cowboy_static, {priv_file, nrte, "tester.html"}},
-            {"/eventsource", nrte_eventsource, []},
-            {"/websocket", nrte_websocket, []},
-            {"/[...]", nrte_rest, []}
-        ]}
-    ]),
-    cowboy:start_clear(nrte_listener, [{port, 2080}], #{
-        enable_connect_protocol => true, env => #{dispatch => Dispatch}
-    }),
-    nrte_sup:start_link().
+auth_type() ->
+    % {always, boolean()} or {Mod, Fun} that will be called as Mod:Fun(AuthBinaryValue) -> boolean().
+    application:get_env(nrte, auth_type, {always, true}).
 
-stop(_) ->
-    cowboy:stop_listener(nrte_listener),
-    ok.
+token_cleanup_seconds() ->
+    application:get_env(nrte, token_cleanup_seconds, 60).
+
+token_expiration_seconds() ->
+    application:get_env(nrte, token_expiration_seconds, 60).

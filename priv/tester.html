@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>nrte example</title>
+  <style>
+    body {
+      background-color: #1a1a1a;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 100px;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      background-color: #4CAF50;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      padding: 10px 20px;
+      margin: 10px;
+      cursor: pointer;
+      border: none;
+      outline: none;
+      border-radius: 4px;
+    }
+
+    #messageContainer {
+      background-color: #2b2b2b;
+      border: 2px solid #4CAF50;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      padding: 10px;
+      margin: 20px auto;
+      width: 400px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    #messageCounter {
+      color: #fff;
+      font-family: Arial, sans-serif;
+      font-size: 18px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>nrte example</h1>
+
+  <button onclick="getAuthentication()">Auth</button>
+  <button onclick="connectEventSource()">Connect ES</button>
+  <button onclick="connectWebSocket()">Connect WS</button>
+  <button onclick="disconnect()">Disconnect</button>
+
+  <div id="messageContainer"></div>
+
+  <p id="messageCounter">Messages received: 0</p>
+
+  <script>
+    var eventSource;
+    var webSocket;
+    var messageCount = 0;
+
+    function connectEventSource() {
+      disconnect();
+
+      eventSource = new EventSource('http://localhost:2080/eventsource?topics=topic2;topic3;topic4');
+      eventSource.onopen = function (event) {
+        showMessage("EventSource connected");
+      };
+
+      eventSource.onmessage = function (event) {
+        showMessage("EventSource received: " + event.data);
+      };
+
+      eventSource.onerror = function (event) {
+        showMessage("EventSource error: " + JSON.stringify(event));
+      };
+    }
+
+    function connectWebSocket() {
+      disconnect();
+
+      const uri = `ws://localhost:2080/websocket`;
+
+      webSocket = new WebSocket(uri);
+      messageCount = 0;
+
+      webSocket.onopen = function(event) {
+        showMessage("WebSocket connected");
+        webSocket.send("topics: topic1;topic2;topic4");
+      };
+
+      webSocket.onmessage = function(event) {
+        showMessage("WebSocket received: " + event.data);
+        updateMessageCount();
+      };
+
+      webSocket.onclose = function(event) {
+        showMessage("WebSocket disconnected");
+      };
+    }
+
+    function disconnect() {
+      if (webSocket) {
+        webSocket.close();
+        webSocket = null;
+      }
+
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+        showMessage("EventSource disconnected");
+      }
+    }
+
+    function getAuthentication() {
+      fetch('http://localhost:2080/auth', { mode: 'no-cors' })
+        .then(showMessage("Got authentication"))
+        .catch(reason => showMessage("Authentication error: " + reason.message))
+    }
+
+    function showMessage(message) {
+      const messageElement = document.createElement("p");
+      messageElement.textContent = message;
+      document.getElementById("messageContainer").appendChild(messageElement);
+      scrollToBottom();
+    }
+
+    function updateMessageCount() {
+      messageCount++;
+      document.getElementById("messageCounter").textContent = "Messages received: " + messageCount;
+    }
+
+    function scrollToBottom() {
+      const messageContainer = document.getElementById("messageContainer");
+      messageContainer.scrollTop = messageContainer.scrollHeight;
+    }
+  </script>
+</body>
+</html>

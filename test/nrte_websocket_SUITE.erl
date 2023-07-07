@@ -13,14 +13,8 @@
 %% limitations under the License
 -module(nrte_websocket_SUITE).
 
-%%% INCLUDE FILES
-
 %%% EXTERNAL EXPORTS
 -compile([nowarn_export_all, export_all]).
-
-%%% MACROS
-
-%%% RECORDS
 
 %%%-----------------------------------------------------------------------------
 %%% EXTERNAL EXPORTS
@@ -28,10 +22,10 @@
 all() ->
     [
         connect,
+        connect_unauthorized,
         coverage_completion,
         receive_topic_message,
-        send_authorization,
-        send_text_no_authorization,
+        send_text,
         send_topics,
         send_unsupported_text
     ].
@@ -60,6 +54,15 @@ connect() ->
 connect(_Conf) ->
     {ok, {Pid, _StreamRef}} = connect_ws(),
     ok = gun:close(Pid).
+
+connect_unauthorized() ->
+    [{userdata, [{doc, "Tests connecting to the websocket without authorization"}]}].
+
+connect_unauthorized(_Conf) ->
+    application:set_env(nrte, auth_type, {always, false}),
+    unauthorized = connect_ws(),
+    application:unset_env(nrte, auth_type),
+    ok.
 
 coverage_completion() ->
     [{userdata, [{doc, "Ensure coverage completion by sending a direct info message"}]}].
@@ -91,27 +94,19 @@ send_authorization(_Conf) ->
     ok = gun:ws_send(Pid, StreamRef, {text, <<"authorization: user:password">>}),
     ok = gun:close(Pid).
 
-send_text_no_authorization() ->
+send_text() ->
     [{userdata, [{doc, "Tests sending an unsupported text"}]}].
 
-send_text_no_authorization(_Conf) ->
+send_text(_Conf) ->
     {ok, {Pid, StreamRef}} = connect_ws(),
-    Ref = erlang:monitor(process, Pid),
     ok = gun:ws_send(Pid, StreamRef, {text, <<"unsupported message">>}),
-    receive
-        {'DOWN', Ref, _, _, _} ->
-            ok
-    after 1000 ->
-        throw(timeout)
-    end,
-    ok.
+    ok = gun:close(Pid).
 
 send_topics() ->
     [{userdata, [{doc, "Tests sending topics"}]}].
 
 send_topics(_Conf) ->
     {ok, {Pid, StreamRef}} = connect_ws(),
-    ok = gun:ws_send(Pid, StreamRef, {text, <<"authorization: user:password">>}),
     ok = gun:ws_send(Pid, StreamRef, {text, <<"topics: topic1;topic2">>}),
     ok = gun:close(Pid).
 
@@ -120,7 +115,6 @@ send_unsupported_text() ->
 
 send_unsupported_text(_Conf) ->
     {ok, {Pid, StreamRef}} = connect_ws(),
-    ok = gun:ws_send(Pid, StreamRef, {text, <<"authorization: user:password">>}),
     ok = gun:ws_send(Pid, StreamRef, {text, <<"unsupported text">>}),
     ok = gun:close(Pid).
 
@@ -137,8 +131,10 @@ connect_ws() ->
     {ok, Protocol} = gun:await_up(Pid),
     ok = do_await_enable_connect_protocol(Protocol, Pid),
     StreamRef = gun:ws_upgrade(Pid, "/websocket", []),
-    {upgrade, [<<"websocket">>], _} = gun:await(Pid, StreamRef),
-    {ok, {Pid, StreamRef}}.
+    case gun:await(Pid, StreamRef) of
+        {upgrade, [<<"websocket">>], _} -> {ok, {Pid, StreamRef}};
+        {response, fin, 401, _} -> unauthorized
+    end.
 
 do_await_enable_connect_protocol(http2, Pid) ->
     % We cannot do a CONNECT :protocol request until the server tells us we can.

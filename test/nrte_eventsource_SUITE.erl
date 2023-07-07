@@ -13,20 +13,14 @@
 %% limitations under the License
 -module(nrte_eventsource_SUITE).
 
-%%% INCLUDE FILES
-
 %%% EXTERNAL EXPORTS
 -compile([nowarn_export_all, export_all]).
-
-%%% MACROS
-
-%%% RECORDS
 
 %%%-----------------------------------------------------------------------------
 %%% EXTERNAL EXPORTS
 %%%-----------------------------------------------------------------------------
 all() ->
-    [connect, receive_topic_message].
+    [connect, connect_unauthorized, receive_topic_message].
 
 suite() ->
     [{timetrap, {seconds, 60}}].
@@ -53,16 +47,22 @@ connect(_Conf) ->
     {ok, {Pid, _StreamRef}} = connect_es("topic1;topic2;topic3"),
     ok = gun:close(Pid).
 
+connect_unauthorized() ->
+    [{userdata, [{doc, "Tests unauthorized connecting to the websocket"}]}].
+
+connect_unauthorized(_Conf) ->
+    application:set_env(nrte, auth_type, {always, false}),
+    unauthorized = connect_es("topic1;topic2;topic3"),
+    application:unset_env(nrte, auth_type),
+    ok.
+
 receive_topic_message() ->
     [{userdata, [{doc, "Tests receiving a published topic message"}]}].
 
 receive_topic_message(_Conf) ->
     {ok, {Pid, StreamRef}} = connect_es("topic"),
     ebus:pub(<<"topic">>, <<"message">>),
-    receive
-        {gun_sse, Pid, StreamRef, #{data := [<<"topic;message">>]}} -> ok
-    after 1000 -> throw(timeout)
-    end,
+    {sse, #{data := [<<"topic;message">>]}} = gun:await(Pid, StreamRef, 1000),
     ok = gun:close(Pid).
 
 %%%-----------------------------------------------------------------------------
@@ -78,10 +78,10 @@ connect_es(Topics) ->
     StreamRef = gun:get(Pid, "/eventsource?topics=" ++ Topics, [
         {<<"accept">>, <<"text/event-stream">>}
     ]),
-    receive
-        {gun_response, Pid, StreamRef, nofin, 200, Headers} ->
+    case gun:await(Pid, StreamRef, 1000) of
+        {response, nofin, 200, Headers} ->
             {_, <<"text/event-stream">>} = lists:keyfind(<<"content-type">>, 1, Headers),
-            {ok, {Pid, StreamRef}}
-    after 1000 ->
-        error(timeout)
+            {ok, {Pid, StreamRef}};
+        {response, fin, 401, _} ->
+            unauthorized
     end.
