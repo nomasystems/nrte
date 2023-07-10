@@ -3,14 +3,12 @@
 An OTP application to send and receive real time events over HTTP connections.
 
 ## Status
+[![GitHub branch checks state](https://github.com/nomasystems/nrte/actions/workflows/ci.yml/badge.svg)](https://github.com/nomasystems/nrte/actions/workflows/ci.yml)
 
-![GitHub branch checks state](https://img.shields.io/github/checks-status/nomasystems/nrte/main)
-![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/nomasystems/nrte/ci/main)
-![Coveralls branch](https://img.shields.io/coveralls/github/nomasystems/nrte/main)
 
 ## Prerequisites
 
-![Min. OTP version](https://img.shields.io/badge/min._OTP-26-blue)
+![Min. OTP version](https://img.shields.io/badge/min._OTP-25.3.2-blue)
 ![Max. OTP version](https://img.shields.io/badge/max._OTP-26-blue)
 ![Min. rebar version](https://img.shields.io/badge/min._rebar-3.22.X-blue)
 
