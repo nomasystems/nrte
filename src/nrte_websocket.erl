@@ -17,9 +17,6 @@
 %%% COWBOY WEBSOCKET EXPORTS
 -export([init/2, websocket_handle/2, websocket_info/2]).
 
-%%% CALLBACK EXPORTS
--export([handle_ebus_message/3]).
-
 %%%-----------------------------------------------------------------------------
 %%% COWBOY WEBSOCKET EXPORTS
 %%%-----------------------------------------------------------------------------
@@ -33,7 +30,7 @@ websocket_handle({text, <<"topics: ", Topics/binary>>}, State) ->
     TopicList = binary:split(Topics, <<";">>, [global]),
     lists:foreach(
         fun(T) ->
-            Handler = ebus_proc:spawn_handler(fun ?MODULE:handle_ebus_message/3, [T, self()], [link]),
+            Handler = nrte_ebus_handler:spawn(T, self()),
             ebus:sub(Handler, T)
         end,
         TopicList
@@ -42,14 +39,7 @@ websocket_handle({text, <<"topics: ", Topics/binary>>}, State) ->
 websocket_handle(_Data, State) ->
     {ok, State}.
 
-websocket_info({ebus_message, {Topic, Message}}, State) ->
-    Data = [Topic, ";", Message],
+websocket_info({ebus_message, Data}, State) ->
     {reply, {text, Data}, State};
 websocket_info(_Info, State) ->
     {ok, State}.
-
-%%%-----------------------------------------------------------------------------
-%%% CALLBACK EXPORTS
-%%%-----------------------------------------------------------------------------
-handle_ebus_message(Message, Topic, Pid) ->
-    Pid ! {ebus_message, {Topic, Message}}.

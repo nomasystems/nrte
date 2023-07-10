@@ -21,15 +21,18 @@
 %%% APPLICATION EXPORTS
 %%%-----------------------------------------------------------------------------
 start(_, _) ->
-    Dispatch = cowboy_router:compile([
-        {'_', [
-            {"/", cowboy_static, {priv_file, nrte, "tester.html"}},
-            {"/eventsource", nrte_eventsource, []},
-            {"/websocket", nrte_websocket, []},
-            {"/[...]", nrte_rest, []}
-        ]}
-    ]),
-    cowboy:start_clear(nrte_listener, [{port, 2080}], #{
+    BaseRoutes = [
+        {"/eventsource", nrte_eventsource, []},
+        {"/websocket", nrte_websocket, []},
+        {"/[...]", nrte_rest, []}
+    ],
+    Routes =
+        case nrte_conf:serve_priv_dir() of
+            true -> [{"/priv/[...]", cowboy_static, {priv_dir, nrte, ""}} | BaseRoutes];
+            _ -> BaseRoutes
+        end,
+    Dispatch = cowboy_router:compile([{'_', Routes}]),
+    cowboy:start_clear(nrte_listener, [{port, nrte_conf:port()}], #{
         enable_connect_protocol => true, env => #{dispatch => Dispatch}
     }),
     nrte_sup:start_link().

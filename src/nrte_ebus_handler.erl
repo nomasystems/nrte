@@ -11,37 +11,31 @@
 %% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 %% See the License for the specific language governing permissions and
 %% limitations under the License
--module(nrte_eventsource).
--behaviour(cowboy_loop).
+-module(nrte_ebus_handler).
 
-%%% COWBOY LOOP EXPORTS
--export([init/2, info/3]).
+%%% EXTERNAL EXPORTS
+-export([spawn/2]).
 
-%%%-----------------------------------------------------------------------------
-%%% COWBOY LOOP EXPORTS
-%%%-----------------------------------------------------------------------------
-init(Req, Opts) ->
-    case nrte_auth:is_authorized(Req) of
-        true -> start_loop(Req, Opts);
-        false -> {ok, cowboy_req:reply(401, #{}, <<>>, Req), Opts}
-    end.
-
-info({ebus_message, Data}, Req, Opts) ->
-    ok = cowboy_req:stream_events(#{data => Data}, nofin, Req),
-    {ok, Req, Opts}.
+%%% CALLBACK EXPORTS
+-export([handle_message/3]).
 
 %%%-----------------------------------------------------------------------------
-%%% INTERNAL FUNCTIONS
+%%% EXTERNAL EXPORTS
 %%%-----------------------------------------------------------------------------
-start_loop(Req, Opts) ->
-    Topics = proplists:get_value(<<"topics">>, cowboy_req:parse_qs(Req)),
-    TopicList = binary:split(Topics, <<";">>, [global]),
-    lists:foreach(
-        fun(T) ->
-            Handler = nrte_ebus_handler:spawn(T, self()),
-            ebus:sub(Handler, T)
+spawn(Topic, Pid) ->
+    ebus_proc:spawn_handler(fun ?MODULE:handle_message/3, [Topic, Pid], [link]).
+
+%%%-----------------------------------------------------------------------------
+%%% CALLBACK EXPORTS
+%%%-----------------------------------------------------------------------------
+handle_message(Message, Topic, Pid) ->
+    Template = nrte_conf:data_template(),
+    Replacements = [{<<"{{message}}">>, Message}, {<<"{{topic}}">>, Topic}],
+    Data = lists:foldl(
+        fun({Original, Replacement}, Acc) ->
+            binary:replace(Acc, Original, Replacement, [global])
         end,
-        TopicList
+        Template,
+        Replacements
     ),
-    Req2 = cowboy_req:stream_reply(200, #{<<"content-type">> => <<"text/event-stream">>}, Req),
-    {cowboy_loop, Req2, Opts}.
+    Pid ! {ebus_message, Data}.
