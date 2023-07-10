@@ -29,6 +29,10 @@ init(Req, Opts) ->
 %%%-----------------------------------------------------------------------------
 %%% INTERNAL FUNCTIONS
 %%%-----------------------------------------------------------------------------
+expand_topic(Topic) ->
+    Subtopics = [binary:part(Topic, {0, Pos}) || {Pos, _} <- binary:matches(Topic, <<":">>)],
+    [Topic | Subtopics].
+
 init_authorized(#{path := <<"/auth">>} = Req, Opts) ->
     Req2 = nrte_auth:generate_token(Req),
     {ok, cowboy_req:reply(200, #{}, <<>>, Req2), Opts};
@@ -38,7 +42,8 @@ init_authorized(#{path := <<"/message">>} = Req, Opts) ->
         #{<<"topics">> := Topics, <<"message">> := Message} when
             is_list(Topics) andalso is_binary(Message)
         ->
-            lists:foreach(fun(T) -> ebus:pub(T, Message) end, Topics),
+            ExpandedTopics = lists:append([expand_topic(T) || T <- Topics]),
+            lists:foreach(fun(T) -> ebus:pub(T, Message) end, ExpandedTopics),
             {ok, cowboy_req:reply(200, #{}, <<>>, Req2), Opts};
         _ ->
             {ok, cowboy_req:reply(400, #{}, <<>>, Req2), Opts}

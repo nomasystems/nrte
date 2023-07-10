@@ -16,6 +16,9 @@
 %%% EXTERNAL EXPORTS
 -compile([nowarn_export_all, export_all]).
 
+%%% MACROS
+-define(TEXT, <<"text">>).
+
 %%%-----------------------------------------------------------------------------
 %%% EXTERNAL EXPORTS
 %%%-----------------------------------------------------------------------------
@@ -30,7 +33,8 @@ all() ->
         get_unauthorized,
         get_undocumented_path,
         post_empty_body,
-        post_topic_message
+        post_topic_message,
+        post_topic_with_subtopics
     ].
 
 suite() ->
@@ -175,10 +179,27 @@ post_topic_message(_Conf) ->
     ebus:sub(self(), "topic"),
     {ok, Pid} = gun:open("localhost", 2080),
     {ok, http} = gun:await_up(Pid),
-    Body = njson:encode(#{<<"topics">> => [<<"topic">>], <<"message">> => <<"text">>}),
+    Body = njson:encode(#{<<"topics">> => [<<"topic">>], <<"message">> => ?TEXT}),
     StreamRef = gun:post(Pid, "/message", #{<<"content-type">> => <<"application/json">>}, Body),
     {response, fin, 200, _Headers} = gun:await(Pid, StreamRef, 1000),
-    [<<"text">>] = ebus_proc:messages(self()),
+    [?TEXT] = ebus_proc:messages(self()),
+    ok = gun:close(Pid).
+
+post_topic_with_subtopics() ->
+    [{userdata, [{doc, "Tests posting a topic with subtopics"}]}].
+
+post_topic_with_subtopics(_Conf) ->
+    Topic = <<"topic:subtopic:subsubtopic:subsubsubtopic">>,
+    ExpectedTopicPubs = [
+        Topic, <<"topic:subtopic:subsubtopic">>, <<"topic:subtopic">>, <<"topic">>
+    ],
+    ok = lists:foreach(fun(T) -> ebus:sub(self(), T) end, ExpectedTopicPubs),
+    {ok, Pid} = gun:open("localhost", 2080),
+    {ok, http} = gun:await_up(Pid),
+    Body = njson:encode(#{<<"topics">> => [Topic], <<"message">> => ?TEXT}),
+    StreamRef = gun:post(Pid, "/message", #{<<"content-type">> => <<"application/json">>}, Body),
+    {response, fin, 200, _Headers} = gun:await(Pid, StreamRef, 1000),
+    true = length(ExpectedTopicPubs) =:= length(ebus_proc:messages(self())),
     ok = gun:close(Pid).
 
 %%%-----------------------------------------------------------------------------
