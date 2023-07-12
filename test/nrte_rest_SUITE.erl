@@ -30,6 +30,8 @@ all() ->
         get_auth_cookie_via_auth_cookie_used,
         get_auth_cookie_via_auth_mod,
         get_auth_cookie_via_auth_mod_no_auth_header,
+        get_priv_dir,
+        get_priv_dir_404,
         get_unauthorized,
         get_undocumented_path,
         post_empty_body,
@@ -138,6 +140,32 @@ get_auth_cookie_via_auth_mod_no_auth_header(_Conf) ->
     StreamRef = gun:get(Pid, "/auth"),
     {response, fin, 401, _} = gun:await(Pid, StreamRef, 1000),
     application:unset_env(nrte, auth_type),
+    ok.
+
+get_priv_dir() ->
+    [{userdata, [{doc, "Tests getting a file from the priv dir"}]}].
+
+get_priv_dir(_Conf) ->
+    application:set_env(nrte, serve_priv_dir, true),
+    application:stop(nrte),
+    application:start(nrte),
+    {ok, Pid} = gun:open("localhost", 2080),
+    {ok, http} = gun:await_up(Pid),
+    StreamRef = gun:get(Pid, "/priv/tester.html"),
+    {response, _, 200, _} = gun:await(Pid, StreamRef, 1000),
+    application:unset_env(nrte, serve_priv_dir),
+    application:stop(nrte),
+    application:start(nrte),
+    ok.
+
+get_priv_dir_404() ->
+    [{userdata, [{doc, "Tests not getting a file from the priv dir with the default conf"}]}].
+
+get_priv_dir_404(_Conf) ->
+    {ok, Pid} = gun:open("localhost", 2080),
+    {ok, http} = gun:await_up(Pid),
+    StreamRef = gun:get(Pid, "/priv/tester.html"),
+    {response, _, 404, _} = gun:await(Pid, StreamRef, 1000),
     ok.
 
 get_unauthorized() ->

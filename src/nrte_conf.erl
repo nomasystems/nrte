@@ -14,14 +14,29 @@
 -module(nrte_conf).
 
 %%% EXTERNAL EXPORTS
--export([auth_type/0, token_cleanup_seconds/0, token_expiration_seconds/0]).
+-export([
+    auth_type/0,
+    data_template/0,
+    port/0,
+    serve_priv_dir/0,
+    token_cleanup_seconds/0,
+    token_expiration_seconds/0
+]).
 
 %%%-----------------------------------------------------------------------------
 %%% EXTERNAL EXPORTS
 %%%-----------------------------------------------------------------------------
 auth_type() ->
-    % {always, boolean()} or {Mod, Fun} that will be called as Mod:Fun(AuthBinaryValue) -> boolean().
     application:get_env(nrte, auth_type, {always, true}).
+
+data_template() ->
+    application:get_env(nrte, data_template, <<"{{topic}};{{message}}">>).
+
+port() ->
+    application:get_env(nrte, port, 2080).
+
+serve_priv_dir() ->
+    application:get_env(nrte, serve_priv_dir, false).
 
 token_cleanup_seconds() ->
     application:get_env(nrte, token_cleanup_seconds, 60).

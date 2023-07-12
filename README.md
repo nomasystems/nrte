@@ -41,6 +41,27 @@ Then, all messages posted to the `/message` endpoint will be redirected to the o
 curl -X POST -d '{"topics": ["topic1", "topic2"], "message": "text"}' 'localhost:2080/message'
 ```
 
+## Configuration
+
+`nrte` defaults to the following configuration values:
+```erl
+[
+  {auth_type, {always,true}},
+  {data_template, {<<"{{topic}};{{message}}">>}},
+  {port, 2080},
+  {serve_priv_dir, false},
+  {token_cleanup_seconds, 60},
+  {token_expiration_seconds, 60}
+]
+```
+
+* `auth_type`: see [authentication](#authentication) for details.
+* `data_template`: a template for sending the data through the http connections. Both `{{topic}}` and `{{message}}` are optional and will be replaced with the actual values.
+* `port`: TCP port that serves the different endpoints.
+* `serve_priv_dir`: whether to include the [priv dir](/priv/) in the server or not.
+* `token_cleanup_seconds`: how often should the expired tokens be deleted.
+* `token_expiration_seconds`: how long is the authentication token valid.
+
 ## Authentication
 
 By default nrte doesn't authenticate its users, but this can be changed by setting the `auth_type` configuration parameter to a tuple `{Mod, Fun}`. When a request arrives with an `Authorization` header, `nrte` will call `Mod:Fun(AuthorizationBinaryValue)` and use the returned `boolean()` to allow or deny access to the resource.
