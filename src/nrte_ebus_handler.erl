@@ -14,7 +14,7 @@
 -module(nrte_ebus_handler).
 
 %%% EXTERNAL EXPORTS
--export([spawn/2]).
+-export([subscribe/1]).
 
 %%% CALLBACK EXPORTS
 -export([handle_message/3]).
@@ -22,8 +22,14 @@
 %%%-----------------------------------------------------------------------------
 %%% EXTERNAL EXPORTS
 %%%-----------------------------------------------------------------------------
-spawn(Topic, Pid) ->
-    ebus_proc:spawn_handler(fun ?MODULE:handle_message/3, [Topic, Pid], [link]).
+subscribe(TopicList) ->
+    lists:foreach(
+        fun(Topic) ->
+            Handler = ebus_proc:spawn_handler(fun ?MODULE:handle_message/3, [Topic, self()], [link]),
+            ebus:sub(Handler, Topic)
+        end,
+        TopicList
+    ).
 
 %%%-----------------------------------------------------------------------------
 %%% CALLBACK EXPORTS

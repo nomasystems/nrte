@@ -12,11 +12,13 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License
 -module(nrte_rest_SUITE).
+-behaviour(nrte_auth).
 
 %%% EXTERNAL EXPORTS
 -compile([nowarn_export_all, export_all]).
 
 %%% MACROS
+-define(HEADERS, #{<<"content-type">> => <<"application/json">>}).
 -define(TEXT, <<"text">>).
 
 %%%-----------------------------------------------------------------------------
@@ -24,17 +26,15 @@
 %%%-----------------------------------------------------------------------------
 all() ->
     [
-        get_auth_cookie,
-        get_auth_cookie_via_auth_cookie,
-        get_auth_cookie_via_auth_cookie_expired,
-        get_auth_cookie_via_auth_cookie_used,
-        get_auth_cookie_via_auth_mod,
-        get_auth_cookie_via_auth_mod_no_auth_header,
         get_priv_dir,
         get_priv_dir_404,
         get_unauthorized,
+        get_unauthorized_via_auth_mod,
         get_undocumented_path,
+        get_undocumented_path_via_auth_mod,
         post_empty_body,
+        post_no_topic,
+        post_topic_all_authorized,
         post_topic_message,
         post_topic_with_subtopics
     ].
@@ -57,91 +57,6 @@ end_per_suite(Conf) ->
 %%%-----------------------------------------------------------------------------
 %%% TEST CASES
 %%%-----------------------------------------------------------------------------
-get_auth_cookie() ->
-    [{userdata, [{doc, "Tests getting an auth cookie"}]}].
-
-get_auth_cookie(_Conf) ->
-    {ok, Pid} = gun:open("localhost", 2080),
-    {ok, http} = gun:await_up(Pid),
-    StreamRef = gun:get(Pid, "/auth"),
-    {response, fin, 200, Headers} = gun:await(Pid, StreamRef, 1000),
-    {<<"set-cookie">>, <<"nrte_auth=", _/binary>>} = lists:keyfind(<<"set-cookie">>, 1, Headers),
-    ok.
-
-get_auth_cookie_via_auth_cookie() ->
-    [{userdata, [{doc, "Tests getting an auth cookie with an auth cookie"}]}].
-
-get_auth_cookie_via_auth_cookie(_Conf) ->
-    application:set_env(nrte, auth_type, {?MODULE, auth_fun}),
-    {ok, Pid} = gun:open("localhost", 2080, #{cookie_store => gun_cookies_list:init(#{})}),
-    {ok, http} = gun:await_up(Pid),
-    StreamRef = gun:get(Pid, "/auth", [{<<"authorization">>, <<"basic-auth">>}]),
-    {response, fin, 200, _} = gun:await(Pid, StreamRef, 1000),
-    StreamRef2 = gun:get(Pid, "/auth"),
-    {response, fin, 200, _} = gun:await(Pid, StreamRef2, 1000),
-    application:unset_env(nrte, auth_type),
-    ok.
-
-get_auth_cookie_via_auth_cookie_expired() ->
-    [{userdata, [{doc, "Tests not getting an auth cookie with an expired auth cookie"}]}].
-
-get_auth_cookie_via_auth_cookie_expired(_Conf) ->
-    application:set_env(nrte, auth_type, {?MODULE, auth_fun}),
-    application:set_env(nrte, token_cleanup_seconds, 0),
-    application:set_env(nrte, token_expiration_seconds, 0),
-    % Ensure the nrte_auth takes the new cleanup value instantly
-    ok = gen_server:stop(nrte_auth),
-    {ok, Pid} = gun:open("localhost", 2080, #{cookie_store => gun_cookies_list:init(#{})}),
-    {ok, http} = gun:await_up(Pid),
-    StreamRef = gun:get(Pid, "/auth", [{<<"authorization">>, <<"basic-auth">>}]),
-    {response, fin, 200, _} = gun:await(Pid, StreamRef, 1000),
-    StreamRef3 = gun:get(Pid, "/auth"),
-    {response, fin, 401, _} = gun:await(Pid, StreamRef3, 1000),
-    application:unset_env(nrte, token_cleanup_seconds),
-    application:unset_env(nrte, auth_type),
-    application:unset_env(nrte, token_expiration_seconds),
-    ok.
-
-get_auth_cookie_via_auth_cookie_used() ->
-    [{userdata, [{doc, "Tests not getting an auth cookie with an used auth cookie"}]}].
-
-get_auth_cookie_via_auth_cookie_used(_Conf) ->
-    application:set_env(nrte, auth_type, {?MODULE, auth_fun}),
-    {ok, Pid} = gun:open("localhost", 2080, #{cookie_store => gun_cookies_list:init(#{})}),
-    {ok, http} = gun:await_up(Pid),
-    StreamRef = gun:get(Pid, "/auth", [{<<"authorization">>, <<"basic-auth">>}]),
-    {response, fin, 200, _} = gun:await(Pid, StreamRef, 1000),
-    StreamRef2 = gun:get(Pid, "/consume-cookie"),
-    {response, fin, _, _} = gun:await(Pid, StreamRef2, 1000),
-    StreamRef3 = gun:get(Pid, "/auth"),
-    {response, fin, 401, _} = gun:await(Pid, StreamRef3, 1000),
-    application:unset_env(nrte, auth_type),
-    ok.
-
-get_auth_cookie_via_auth_mod() ->
-    [{userdata, [{doc, "Tests getting an auth cookie with an auth mod configured"}]}].
-
-get_auth_cookie_via_auth_mod(_Conf) ->
-    application:set_env(nrte, auth_type, {?MODULE, auth_fun}),
-    {ok, Pid} = gun:open("localhost", 2080),
-    {ok, http} = gun:await_up(Pid),
-    StreamRef = gun:get(Pid, "/auth", [{<<"authorization">>, <<"basic-auth">>}]),
-    {response, fin, 200, _} = gun:await(Pid, StreamRef, 1000),
-    application:unset_env(nrte, auth_type),
-    ok.
-
-get_auth_cookie_via_auth_mod_no_auth_header() ->
-    [{userdata, [{doc, "Tests not getting an auth cookie with an auth mod configured"}]}].
-
-get_auth_cookie_via_auth_mod_no_auth_header(_Conf) ->
-    application:set_env(nrte, auth_type, {?MODULE, auth_fun}),
-    {ok, Pid} = gun:open("localhost", 2080),
-    {ok, http} = gun:await_up(Pid),
-    StreamRef = gun:get(Pid, "/auth"),
-    {response, fin, 401, _} = gun:await(Pid, StreamRef, 1000),
-    application:unset_env(nrte, auth_type),
-    ok.
-
 get_priv_dir() ->
     [{userdata, [{doc, "Tests getting a file from the priv dir"}]}].
 
@@ -172,7 +87,19 @@ get_unauthorized() ->
     [{userdata, [{doc, "Tests getting an unauthorized path"}]}].
 
 get_unauthorized(_Conf) ->
-    application:set_env(nrte, auth_type, {always, false}),
+    application:set_env(nrte, auth_type, {always_allow, unauthorized}),
+    {ok, Pid} = gun:open("localhost", 2080),
+    {ok, http} = gun:await_up(Pid),
+    StreamRef = gun:get(Pid, "/auth"),
+    {response, fin, 401, _Headers} = gun:await(Pid, StreamRef, 1000),
+    application:unset_env(nrte, auth_type),
+    ok.
+
+get_unauthorized_via_auth_mod() ->
+    [{userdata, [{doc, "Tests getting an unauthorized path with auth mod"}]}].
+
+get_unauthorized_via_auth_mod(_Conf) ->
+    application:set_env(nrte, auth_type, {auth_mod, ?MODULE}),
     {ok, Pid} = gun:open("localhost", 2080),
     {ok, http} = gun:await_up(Pid),
     StreamRef = gun:get(Pid, "/auth"),
@@ -190,15 +117,53 @@ get_undocumented_path(_Conf) ->
     {response, fin, 404, _Headers} = gun:await(Pid, StreamRef, 1000),
     ok.
 
+get_undocumented_path_via_auth_mod() ->
+    [{userdata, [{doc, "Tests getting an undocumented path with auth mod"}]}].
+
+get_undocumented_path_via_auth_mod(_Conf) ->
+    application:set_env(nrte, auth_type, {auth_mod, ?MODULE}),
+    {ok, Pid} = gun:open("localhost", 2080),
+    {ok, http} = gun:await_up(Pid),
+    StreamRef = gun:get(Pid, "/undocumented", [{<<"authorization">>, <<"some">>}]),
+    {response, fin, 404, _Headers} = gun:await(Pid, StreamRef, 1000),
+    application:unset_env(nrte, auth_type),
+    ok.
+
 post_empty_body() ->
     [{userdata, [{doc, "Tests posting an empty body"}]}].
 
 post_empty_body(_Conf) ->
+    ebus:sub(self(), "topic"),
     {ok, Pid} = gun:open("localhost", 2080),
     {ok, http} = gun:await_up(Pid),
-    StreamRef = gun:post(Pid, "/message", #{}, <<>>),
-    {response, fin, 400, _Headers} = gun:await(Pid, StreamRef, 1000),
+    StreamRef = gun:post(Pid, "/message?topics=topic", #{}, <<>>),
+    {response, _, 200, _Headers} = gun:await(Pid, StreamRef, 1000),
+    [<<>>] = ebus_proc:messages(self()),
+    ok = gun:close(Pid).
+
+post_no_topic() ->
+    [{userdata, [{doc, "Tests posting without topics"}]}].
+
+post_no_topic(_Conf) ->
+    {ok, Pid} = gun:open("localhost", 2080),
+    {ok, http} = gun:await_up(Pid),
+    StreamRef = gun:post(Pid, "/message", #{}, ?TEXT),
+    {response, _, 400, _Headers} = gun:await(Pid, StreamRef, 1000),
     ok.
+
+post_topic_all_authorized() ->
+    [{userdata, [{doc, "Tests posting a topic message with all publications auth"}]}].
+
+post_topic_all_authorized(_Conf) ->
+    application:set_env(nrte, auth_type, {always_allow, all}),
+    ebus:sub(self(), "topic"),
+    {ok, Pid} = gun:open("localhost", 2080),
+    {ok, http} = gun:await_up(Pid),
+    StreamRef = gun:post(Pid, "/message?topics=topic", ?HEADERS, ?TEXT),
+    {response, fin, 200, _Headers} = gun:await(Pid, StreamRef, 1000),
+    [?TEXT] = ebus_proc:messages(self()),
+    application:unset_env(nrte, auth_type),
+    ok = gun:close(Pid).
 
 post_topic_message() ->
     [{userdata, [{doc, "Tests posting a topic message"}]}].
@@ -207,8 +172,7 @@ post_topic_message(_Conf) ->
     ebus:sub(self(), "topic"),
     {ok, Pid} = gun:open("localhost", 2080),
     {ok, http} = gun:await_up(Pid),
-    Body = njson:encode(#{<<"topics">> => [<<"topic">>], <<"message">> => ?TEXT}),
-    StreamRef = gun:post(Pid, "/message", #{<<"content-type">> => <<"application/json">>}, Body),
+    StreamRef = gun:post(Pid, "/message?topics=topic", ?HEADERS, ?TEXT),
     {response, fin, 200, _Headers} = gun:await(Pid, StreamRef, 1000),
     [?TEXT] = ebus_proc:messages(self()),
     ok = gun:close(Pid).
@@ -224,8 +188,7 @@ post_topic_with_subtopics(_Conf) ->
     ok = lists:foreach(fun(T) -> ebus:sub(self(), T) end, ExpectedTopicPubs),
     {ok, Pid} = gun:open("localhost", 2080),
     {ok, http} = gun:await_up(Pid),
-    Body = njson:encode(#{<<"topics">> => [Topic], <<"message">> => ?TEXT}),
-    StreamRef = gun:post(Pid, "/message", #{<<"content-type">> => <<"application/json">>}, Body),
+    StreamRef = gun:post(Pid, ["/message?topics=", Topic], ?HEADERS, ?TEXT),
     {response, fin, 200, _Headers} = gun:await(Pid, StreamRef, 1000),
     true = length(ExpectedTopicPubs) =:= length(ebus_proc:messages(self())),
     ok = gun:close(Pid).
@@ -233,5 +196,8 @@ post_topic_with_subtopics(_Conf) ->
 %%%-----------------------------------------------------------------------------
 %%% INTERNAL FUNCTIONS
 %%%-----------------------------------------------------------------------------
-auth_fun(_) ->
-    true.
+nrte_auth(Headers) ->
+    case maps:is_key(<<"authorization">>, Headers) of
+        true -> #{allowed_publications => all};
+        false -> unauthorized
+    end.

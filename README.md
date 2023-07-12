@@ -25,20 +25,17 @@ Then, you can connect either via WebSocket or server-sent events to start receiv
 
 For example, in javascript via the `WebSocket` interface:
 ```js
-const webSocket = new WebSocket('ws://localhost:2080/websocket');
-webSocket.onopen = function(event) {
-    webSocket.send("topics: topic1;topic2;topic3");
-};
+const webSocket = new WebSocket('ws://localhost:2080/websocket?topics=topic1;topic2;topic3');
 ```
 
-Or via server-sent events in `curl` 
+Or via server-sent events in `curl`:
 ```sh
 curl 'localhost:2080/eventsource?topics=topic1;topic2;topic3'
 ```
 
-Then, all messages posted to the `/message` endpoint will be redirected to the online subscribers:
+Then, all data posted to the `/message` endpoint will be redirected to the online subscribers:
 ```sh
-curl -X POST -d '{"topics": ["topic1", "topic2"], "message": "text"}' 'localhost:2080/message'
+curl -X POST -d 'my custom message' 'localhost:2080/message?topics=topic1'
 ```
 
 ## Configuration
@@ -46,12 +43,10 @@ curl -X POST -d '{"topics": ["topic1", "topic2"], "message": "text"}' 'localhost
 `nrte` defaults to the following configuration values:
 ```erl
 [
-  {auth_type, {always,true}},
+  {auth_type, {always_allow, all}},
   {data_template, {<<"{{topic}};{{message}}">>}},
   {port, 2080},
-  {serve_priv_dir, false},
-  {token_cleanup_seconds, 60},
-  {token_expiration_seconds, 60}
+  {serve_priv_dir, false}
 ]
 ```
 
@@ -59,14 +54,30 @@ curl -X POST -d '{"topics": ["topic1", "topic2"], "message": "text"}' 'localhost
 * `data_template`: a template for sending the data through the http connections. Both `{{topic}}` and `{{message}}` are optional and will be replaced with the actual values.
 * `port`: TCP port that serves the different endpoints.
 * `serve_priv_dir`: whether to include the [priv dir](/priv/) in the server or not.
-* `token_cleanup_seconds`: how often should the expired tokens be deleted.
-* `token_expiration_seconds`: how long is the authentication token valid.
 
 ## Authentication
 
-By default nrte doesn't authenticate its users, but this can be changed by setting the `auth_type` configuration parameter to a tuple `{Mod, Fun}`. When a request arrives with an `Authorization` header, `nrte` will call `Mod:Fun(AuthorizationBinaryValue)` and use the returned `boolean()` to allow or deny access to the resource.
+By default nrte doesn't authenticate its users, but this can be changed by setting the `auth_type` configuration parameter to a tuple `{auth_mod, Mod}`. In that case, when a request arrives, `nrte` will call `Mod:nrte_auth(Headers)` and use the returned `nrte_auth_value()` to allow or deny access to the resource. See the [`nrte_auth` module](/src/nrte_auth.erl) for the behaviour to implement.
 
-Since some WebSocket or EventSource interfaces don't allow setting authorization headers, there's also an `/auth` endpoint that will return a one-use authentication cookie that can be used in the next connection. See the [`JS tester`](priv/tester.html) for an implementation example.
+Some examples:
+```erl
+% Wrong credentials; results in a 401
+nrte_auth(_Headers) ->
+  unauthorized.
+
+% Disallow access to all topics; results in a 403
+nrte_auth(_Headers) ->
+  none.
+
+% Allow access to all topics
+nrte_auth(_Headers) ->
+  all.
+
+% Allow access to subscribe to some topics but disallow publishing
+nrte_auth(_Headers) ->
+  #{allowed_publications => none,
+    allowed_subscriptions => ["allowed_topic_prefix.*", "other_topic"]}.
+```
 
 ## Bypassing the HTTP connections
 

@@ -12,6 +12,7 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License
 -module(nrte_eventsource_SUITE).
+-behaviour(nrte_auth).
 
 %%% EXTERNAL EXPORTS
 -compile([nowarn_export_all, export_all]).
@@ -20,7 +21,13 @@
 %%% EXTERNAL EXPORTS
 %%%-----------------------------------------------------------------------------
 all() ->
-    [connect, connect_unauthorized, receive_topic_message].
+    [
+        connect,
+        connect_authorized_pattern,
+        connect_forbidden_pattern,
+        connect_unauthorized,
+        receive_topic_message
+    ].
 
 suite() ->
     [{timetrap, {seconds, 60}}].
@@ -41,17 +48,35 @@ end_per_suite(Conf) ->
 %%% TEST CASES
 %%%-----------------------------------------------------------------------------
 connect() ->
-    [{userdata, [{doc, "Tests connecting to the websocket"}]}].
+    [{userdata, [{doc, "Tests connecting to the event source"}]}].
 
 connect(_Conf) ->
     {ok, {Pid, _StreamRef}} = connect_es("topic1;topic2;topic3"),
     ok = gun:close(Pid).
 
+connect_authorized_pattern() ->
+    [{userdata, [{doc, "Tests connecting to the event source with an authorized pattern"}]}].
+
+connect_authorized_pattern(_Conf) ->
+    application:set_env(nrte, auth_type, {auth_mod, ?MODULE}),
+    {ok, {Pid, _StreamRef}} = connect_es("auth-allowed"),
+    application:unset_env(nrte, auth_type),
+    ok = gun:close(Pid).
+
+connect_forbidden_pattern() ->
+    [{userdata, [{doc, "Tests being forbidden from connecting to the event source"}]}].
+
+connect_forbidden_pattern(_Conf) ->
+    application:set_env(nrte, auth_type, {auth_mod, ?MODULE}),
+    forbidden = connect_es("auth-allowed;noauth-noallowed"),
+    application:unset_env(nrte, auth_type),
+    ok.
+
 connect_unauthorized() ->
-    [{userdata, [{doc, "Tests unauthorized connecting to the websocket"}]}].
+    [{userdata, [{doc, "Tests unauthorized connecting to the event source"}]}].
 
 connect_unauthorized(_Conf) ->
-    application:set_env(nrte, auth_type, {always, false}),
+    application:set_env(nrte, auth_type, {always_allow, unauthorized}),
     unauthorized = connect_es("topic1;topic2;topic3"),
     application:unset_env(nrte, auth_type),
     ok.
@@ -68,6 +93,9 @@ receive_topic_message(_Conf) ->
 %%%-----------------------------------------------------------------------------
 %%% INTERNAL FUNCTIONS
 %%%-----------------------------------------------------------------------------
+nrte_auth(_) ->
+    #{allowed_subscriptions => [<<"auth.*">>]}.
+
 connect_es(Topics) ->
     Protocol = http2,
     {ok, Pid} = gun:open("localhost", 2080, #{
@@ -83,5 +111,7 @@ connect_es(Topics) ->
             {_, <<"text/event-stream">>} = lists:keyfind(<<"content-type">>, 1, Headers),
             {ok, {Pid, StreamRef}};
         {response, fin, 401, _} ->
-            unauthorized
+            unauthorized;
+        {response, _, 403, _} ->
+            forbidden
     end.

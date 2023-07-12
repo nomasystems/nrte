@@ -13,7 +13,7 @@ Any contribution is welcome. Here you have the guidelines you must follow to con
 
 If you have any doubt or question about the project, please:
 
-1. Read the [documentation](http://nomasystems.github.io/nrte) in case it helps you to clarify the concepts.
+1. Read the [documentation](README.md) in case it helps you to clarify the concepts.
 2. Check out [the issue tracker](https://github.com/nomasystems/nrte/issues?q=is%3Aissue+label%3Aquestion). Maybe your question is already reflected there.
 3. If none of the above makes it clearer for you, create a new question in the issue tracker. The team will try to answer as soon as possible.
 
@@ -27,7 +27,7 @@ Bug reports help us improve the code. We take them very seriously and thank you 
 
 If you find a bug in the code, please:
  
-1. Read the [documentation](http://nomasystems.github.io/nrte) to make sure you find an unexpected behaviour.
+1. Read the [documentation](README.md) to make sure you find an unexpected behaviour.
 2. Check out [the issue tracker](https://github.com/nomasystems/nrte/issues?q=is%3Aissue+label%3Abug). Maybe your bug report is already reflected there.
 3. If you still think this is a new bug report, please create a new bug report in the issue tracker, and make sure you fill all the fields so the person solving the problem has all the necessary information.
 
@@ -35,7 +35,7 @@ If you find a bug in the code, please:
 
 Feature requests are welcome. If you think that the project is missing a feature, please:
  
-1. Read the [documentation](http://nomasystems.github.io/nrte) to make sure the feature is not already included.
+1. Read the [documentation](README.md) to make sure the feature is not already included.
 2. Check out [the issue tracker](https://github.com/nomasystems/nrte/issues?q=is%3Aissue+label%3Aenhancement). Maybe your feature was already requested by someone else.
 3. If your feature is not reflected in any of the above, please create a new feature request in the issue tracker, giving as much context and detail as needed.
 

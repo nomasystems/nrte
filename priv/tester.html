@@ -53,7 +53,6 @@
 <body>
   <h1>nrte example</h1>
 
-  <button onclick="getAuthentication()">Auth</button>
   <button onclick="connectEventSource()">Connect ES</button>
   <button onclick="connectWebSocket()">Connect WS</button>
   <button onclick="disconnect()">Disconnect</button>
@@ -118,12 +117,6 @@
         eventSource = null;
         showMessage("EventSource disconnected");
       }
-    }
-
-    function getAuthentication() {
-      fetch('http://localhost:2080/auth', { mode: 'no-cors' })
-        .then(showMessage("Got authentication"))
-        .catch(reason => showMessage("Authentication error: " + reason.message))
     }
 
     function showMessage(message) {

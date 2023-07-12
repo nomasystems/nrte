@@ -18,16 +18,14 @@
     auth_type/0,
     data_template/0,
     port/0,
-    serve_priv_dir/0,
-    token_cleanup_seconds/0,
-    token_expiration_seconds/0
+    serve_priv_dir/0
 ]).
 
 %%%-----------------------------------------------------------------------------
 %%% EXTERNAL EXPORTS
 %%%-----------------------------------------------------------------------------
 auth_type() ->
-    application:get_env(nrte, auth_type, {always, true}).
+    application:get_env(nrte, auth_type, {always_allow, all}).
 
 data_template() ->
     application:get_env(nrte, data_template, <<"{{topic}};{{message}}">>).
@@ -37,9 +35,3 @@ port() ->
 
 serve_priv_dir() ->
     application:get_env(nrte, serve_priv_dir, false).
-
-token_cleanup_seconds() ->
-    application:get_env(nrte, token_cleanup_seconds, 60).
-
-token_expiration_seconds() ->
-    application:get_env(nrte, token_expiration_seconds, 60).
