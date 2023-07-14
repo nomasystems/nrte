@@ -21,9 +21,11 @@
 %%% COWBOY HANDLER EXPORTS
 %%%-----------------------------------------------------------------------------
 init(Req, Opts) ->
-    case nrte_auth:is_authorized(Req) of
-        true -> init_authorized(Req, Opts);
-        false -> {ok, cowboy_req:reply(401, #{}, <<>>, Req), Opts}
+    case nrte_auth:authorization(Req, publish) of
+        {authorized, TopicList} ->
+            init_authorized(Req, Opts, TopicList);
+        {unauthorized, Req2} ->
+            {stop, Req2, Opts}
     end.
 
 %%%-----------------------------------------------------------------------------
@@ -33,20 +35,12 @@ expand_topic(Topic) ->
     Subtopics = [binary:part(Topic, {0, Pos}) || {Pos, _} <- binary:matches(Topic, <<":">>)],
     [Topic | Subtopics].
 
-init_authorized(#{path := <<"/auth">>} = Req, Opts) ->
-    Req2 = nrte_auth:generate_token(Req),
+init_authorized(#{path := <<"/message">>} = Req, Opts, [<<>>]) ->
+    {stop, cowboy_req:reply(400, #{}, <<"Topics required">>, Req), Opts};
+init_authorized(#{path := <<"/message">>} = Req, Opts, TopicList) ->
+    ExpandedTopics = lists:append([expand_topic(T) || T <- TopicList]),
+    {ok, Body, Req2} = cowboy_req:read_body(Req),
+    lists:foreach(fun(T) -> ebus:pub(T, Body) end, ExpandedTopics),
     {ok, cowboy_req:reply(200, #{}, <<>>, Req2), Opts};
-init_authorized(#{path := <<"/message">>} = Req, Opts) ->
-    {ok, Data, Req2} = cowboy_req:read_body(Req),
-    case catch njson:decode(Data) of
-        #{<<"topics">> := Topics, <<"message">> := Message} when
-            is_list(Topics) andalso is_binary(Message)
-        ->
-            ExpandedTopics = lists:append([expand_topic(T) || T <- Topics]),
-            lists:foreach(fun(T) -> ebus:pub(T, Message) end, ExpandedTopics),
-            {ok, cowboy_req:reply(200, #{}, <<>>, Req2), Opts};
-        _ ->
-            {ok, cowboy_req:reply(400, #{}, <<>>, Req2), Opts}
-    end;
-init_authorized(Req, Opts) ->
-    {ok, cowboy_req:reply(404, #{}, <<>>, Req), Opts}.
+init_authorized(Req, Opts, _TopicList) ->
+    {stop, cowboy_req:reply(404, #{}, <<>>, Req), Opts}.

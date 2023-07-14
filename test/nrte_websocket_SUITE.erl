@@ -12,9 +12,13 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License
 -module(nrte_websocket_SUITE).
+-behaviour(nrte_auth).
 
 %%% EXTERNAL EXPORTS
 -compile([nowarn_export_all, export_all]).
+
+%%% MACROS
+-define(TOPIC, "topic1").
 
 %%%-----------------------------------------------------------------------------
 %%% EXTERNAL EXPORTS
@@ -22,11 +26,12 @@
 all() ->
     [
         connect,
+        connect_authorized_explicitly,
+        connect_forbidden_subscription,
         connect_unauthorized,
         coverage_completion,
         receive_topic_message,
         send_text,
-        send_topics,
         send_unsupported_text
     ].
 
@@ -55,11 +60,29 @@ connect(_Conf) ->
     {ok, {Pid, _StreamRef}} = connect_ws(),
     ok = gun:close(Pid).
 
+connect_authorized_explicitly() ->
+    [{userdata, [{doc, "Tests connecting to the websocket with explicit authorization"}]}].
+
+connect_authorized_explicitly(_Conf) ->
+    application:set_env(nrte, auth_type, {auth_mod, ?MODULE}),
+    {ok, {Pid, _StreamRef}} = connect_ws(),
+    application:unset_env(nrte, auth_type),
+    ok = gun:close(Pid).
+
+connect_forbidden_subscription() ->
+    [{userdata, [{doc, "Tests connecting to the websocket without subscription authorization"}]}].
+
+connect_forbidden_subscription(_Conf) ->
+    application:set_env(nrte, auth_type, {always_allow, #{allowed_publications => all}}),
+    forbidden = connect_ws(),
+    application:unset_env(nrte, auth_type),
+    ok.
+
 connect_unauthorized() ->
     [{userdata, [{doc, "Tests connecting to the websocket without authorization"}]}].
 
 connect_unauthorized(_Conf) ->
-    application:set_env(nrte, auth_type, {always, false}),
+    application:set_env(nrte, auth_type, {always_allow, unauthorized}),
     unauthorized = connect_ws(),
     application:unset_env(nrte, auth_type),
     ok.
@@ -75,23 +98,13 @@ receive_topic_message() ->
 
 receive_topic_message(_Conf) ->
     {ok, {Pid, StreamRef}} = connect_ws(),
-    ok = gun:ws_send(Pid, StreamRef, {text, <<"authorization: user:password">>}),
-    ok = gun:ws_send(Pid, StreamRef, {text, <<"topics: topic">>}),
     % Clear the messages
     ok = gun:flush(StreamRef),
     ok = gun:ws_send(Pid, StreamRef, ping),
     % Wait for pong to ensure the server processed the topic subscription
     {ws, pong} = gun:await(Pid, StreamRef),
-    ebus:pub(<<"topic">>, <<"message">>),
-    {ws, {text, <<"topic;message">>}} = gun:await(Pid, StreamRef),
-    ok = gun:close(Pid).
-
-send_authorization() ->
-    [{userdata, [{doc, "Tests sending the authorization"}]}].
-
-send_authorization(_Conf) ->
-    {ok, {Pid, StreamRef}} = connect_ws(),
-    ok = gun:ws_send(Pid, StreamRef, {text, <<"authorization: user:password">>}),
+    ebus:pub(?TOPIC, <<"message">>),
+    {ws, {text, <<?TOPIC, ";message">>}} = gun:await(Pid, StreamRef),
     ok = gun:close(Pid).
 
 send_text() ->
@@ -100,14 +113,6 @@ send_text() ->
 send_text(_Conf) ->
     {ok, {Pid, StreamRef}} = connect_ws(),
     ok = gun:ws_send(Pid, StreamRef, {text, <<"unsupported message">>}),
-    ok = gun:close(Pid).
-
-send_topics() ->
-    [{userdata, [{doc, "Tests sending topics"}]}].
-
-send_topics(_Conf) ->
-    {ok, {Pid, StreamRef}} = connect_ws(),
-    ok = gun:ws_send(Pid, StreamRef, {text, <<"topics: topic1;topic2">>}),
     ok = gun:close(Pid).
 
 send_unsupported_text() ->
@@ -130,13 +135,17 @@ connect_ws() ->
     }),
     {ok, Protocol} = gun:await_up(Pid),
     ok = do_await_enable_connect_protocol(Protocol, Pid),
-    StreamRef = gun:ws_upgrade(Pid, "/websocket", []),
+    StreamRef = gun:ws_upgrade(Pid, "/websocket?topics=" ++ ?TOPIC, []),
     case gun:await(Pid, StreamRef) of
         {upgrade, [<<"websocket">>], _} -> {ok, {Pid, StreamRef}};
-        {response, fin, 401, _} -> unauthorized
+        {response, fin, 401, _} -> unauthorized;
+        {response, _, 403, _} -> forbidden
     end.
 
 do_await_enable_connect_protocol(http2, Pid) ->
     % We cannot do a CONNECT :protocol request until the server tells us we can.
     {notify, settings_changed, #{enable_connect_protocol := true}} = gun:await(Pid, undefined),
     ok.
+
+nrte_auth(_) ->
+    #{allowed_subscriptions => [<<?TOPIC>>]}.

@@ -30,5 +30,4 @@ start_link() ->
 %%% SUPERVISOR EXPORTS
 %%%-----------------------------------------------------------------------------
 init(_) ->
-    ChildSpecs = [#{id => nrte_auth, start => {nrte_auth, start_link, []}}],
-    {ok, {#{}, ChildSpecs}}.
+    {ok, {#{}, []}}.

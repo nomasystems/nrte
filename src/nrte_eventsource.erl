@@ -17,31 +17,22 @@
 %%% COWBOY LOOP EXPORTS
 -export([init/2, info/3]).
 
+%%% MACROS
+-define(CONTENT_TYPE, <<"text/event-stream">>).
+
 %%%-----------------------------------------------------------------------------
 %%% COWBOY LOOP EXPORTS
 %%%-----------------------------------------------------------------------------
 init(Req, Opts) ->
-    case nrte_auth:is_authorized(Req) of
-        true -> start_loop(Req, Opts);
-        false -> {ok, cowboy_req:reply(401, #{}, <<>>, Req), Opts}
+    case nrte_auth:authorization(Req, subscribe) of
+        {authorized, TopicList} ->
+            nrte_ebus_handler:subscribe(TopicList),
+            Req2 = cowboy_req:stream_reply(200, #{<<"content-type">> => ?CONTENT_TYPE}, Req),
+            {cowboy_loop, Req2, Opts};
+        {unauthorized, Req2} ->
+            {stop, Req2, Opts}
     end.
 
 info({ebus_message, Data}, Req, Opts) ->
     ok = cowboy_req:stream_events(#{data => Data}, nofin, Req),
     {ok, Req, Opts}.
-
-%%%-----------------------------------------------------------------------------
-%%% INTERNAL FUNCTIONS
-%%%-----------------------------------------------------------------------------
-start_loop(Req, Opts) ->
-    Topics = proplists:get_value(<<"topics">>, cowboy_req:parse_qs(Req)),
-    TopicList = binary:split(Topics, <<";">>, [global]),
-    lists:foreach(
-        fun(T) ->
-            Handler = nrte_ebus_handler:spawn(T, self()),
-            ebus:sub(Handler, T)
-        end,
-        TopicList
-    ),
-    Req2 = cowboy_req:stream_reply(200, #{<<"content-type">> => <<"text/event-stream">>}, Req),
-    {cowboy_loop, Req2, Opts}.

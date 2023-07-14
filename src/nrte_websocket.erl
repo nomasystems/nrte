@@ -21,21 +21,14 @@
 %%% COWBOY WEBSOCKET EXPORTS
 %%%-----------------------------------------------------------------------------
 init(Req, Opts) ->
-    case nrte_auth:is_authorized(Req) of
-        true -> {cowboy_websocket, Req, []};
-        false -> {ok, cowboy_req:reply(401, #{}, <<>>, Req), Opts}
+    case nrte_auth:authorization(Req, subscribe) of
+        {authorized, TopicList} ->
+            nrte_ebus_handler:subscribe(TopicList),
+            {cowboy_websocket, Req, []};
+        {unauthorized, Req2} ->
+            {stop, Req2, Opts}
     end.
 
-websocket_handle({text, <<"topics: ", Topics/binary>>}, State) ->
-    TopicList = binary:split(Topics, <<";">>, [global]),
-    lists:foreach(
-        fun(T) ->
-            Handler = nrte_ebus_handler:spawn(T, self()),
-            ebus:sub(Handler, T)
-        end,
-        TopicList
-    ),
-    {ok, State};
 websocket_handle(_Data, State) ->
     {ok, State}.
 
