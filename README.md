@@ -5,7 +5,6 @@ An OTP application to send and receive real time events over HTTP connections.
 ## Status
 [![GitHub branch checks state](https://github.com/nomasystems/nrte/actions/workflows/ci.yml/badge.svg)](https://github.com/nomasystems/nrte/actions/workflows/ci.yml)
 
-
 ## Prerequisites
 
 ![Min. OTP version](https://img.shields.io/badge/min._OTP-25.3.2-blue)
@@ -81,7 +80,17 @@ nrte_auth(_Headers) ->
 
 ## Bypassing the HTTP connections
 
-All events are published and received through the [`erlbus`](https://github.com/cabol/erlbus) library. It is possible to directly use it along the HTTP interfaces by publishing or subscribing to the same topics.
+Messages can also be published via `nrte:publish/2` and subscribed from `nrte:subscribe/1`. In the latter case, the caller will receive messages in the form of `{nrte_message, Data}`:
+```erl
+> nrte:subscribe([<<"example">>]).
+ok
+
+> nrte:publish(<<"example">>, <<"my-message">>).
+ok
+
+> receive {nrte_message, Data} -> Data end.
+<<"example;my-message">>
+```
 
 ## Support
 
