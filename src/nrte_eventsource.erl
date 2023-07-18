@@ -26,13 +26,13 @@
 init(Req, Opts) ->
     case nrte_auth:authorization(Req, subscribe) of
         {authorized, TopicList} ->
-            nrte_ebus_handler:subscribe(TopicList),
+            nrte:subscribe(TopicList),
             Req2 = cowboy_req:stream_reply(200, #{<<"content-type">> => ?CONTENT_TYPE}, Req),
             {cowboy_loop, Req2, Opts};
         {unauthorized, Req2} ->
             {stop, Req2, Opts}
     end.
 
-info({ebus_message, Data}, Req, Opts) ->
+info({nrte_message, Data}, Req, Opts) ->
     ok = cowboy_req:stream_events(#{data => Data}, nofin, Req),
     {ok, Req, Opts}.

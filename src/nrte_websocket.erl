@@ -23,7 +23,7 @@
 init(Req, Opts) ->
     case nrte_auth:authorization(Req, subscribe) of
         {authorized, TopicList} ->
-            nrte_ebus_handler:subscribe(TopicList),
+            nrte:subscribe(TopicList),
             {cowboy_websocket, Req, []};
         {unauthorized, Req2} ->
             {stop, Req2, Opts}
@@ -32,7 +32,7 @@ init(Req, Opts) ->
 websocket_handle(_Data, State) ->
     {ok, State}.
 
-websocket_info({ebus_message, Data}, State) ->
+websocket_info({nrte_message, Data}, State) ->
     {reply, {text, Data}, State};
 websocket_info(_Info, State) ->
     {ok, State}.

@@ -44,4 +44,4 @@ handle_message(Message, Topic, Pid) ->
         Template,
         Replacements
     ),
-    Pid ! {ebus_message, Data}.
+    Pid ! {nrte_message, Data}.

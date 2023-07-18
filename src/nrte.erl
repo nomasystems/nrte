@@ -17,6 +17,9 @@
 %%% APPLICATION EXPORTS
 -export([start/2, stop/1]).
 
+%%% EXTERNAL EXPORTS
+-export([publish/2, subscribe/1]).
+
 %%%-----------------------------------------------------------------------------
 %%% APPLICATION EXPORTS
 %%%-----------------------------------------------------------------------------
@@ -40,3 +43,22 @@ start(_, _) ->
 stop(_) ->
     cowboy:stop_listener(nrte_listener),
     ok.
+
+%%%-----------------------------------------------------------------------------
+%%% EXTERNAL EXPORTS
+%%%-----------------------------------------------------------------------------
+-spec publish(binary(), binary()) -> ok.
+publish(Topic, Message) ->
+    ExpandedTopics = expand_topic(Topic),
+    lists:foreach(fun(T) -> ebus:pub(T, Message) end, ExpandedTopics).
+
+-spec subscribe([iodata()]) -> ok.
+subscribe(TopicList) ->
+    nrte_ebus_handler:subscribe(TopicList).
+
+%%%-----------------------------------------------------------------------------
+%%% INTERNAL FUNCTIONS
+%%%-----------------------------------------------------------------------------
+expand_topic(Topic) ->
+    Subtopics = [binary:part(Topic, {0, Pos}) || {Pos, _} <- binary:matches(Topic, <<":">>)],
+    [Topic | Subtopics].
