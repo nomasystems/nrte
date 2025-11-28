@@ -7,9 +7,8 @@ An OTP application to send and receive real time events over HTTP connections.
 
 ## Prerequisites
 
-![Min. OTP version](https://img.shields.io/badge/min._OTP-25.3.2-blue)
-![Max. OTP version](https://img.shields.io/badge/max._OTP-26-blue)
-![Min. rebar version](https://img.shields.io/badge/min._rebar-3.22.X-blue)
+![Min. OTP version](https://img.shields.io/badge/min._OTP-28-blue)
+![Min. rebar version](https://img.shields.io/badge/min._rebar-3.25.X-blue)
 
 ## Usage
 
