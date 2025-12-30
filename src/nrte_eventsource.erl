@@ -27,6 +27,7 @@ init(Req, Opts) ->
     case nrte_auth:authorization(Req, subscribe) of
         {authorized, TopicList} ->
             nrte:subscribe(TopicList),
+            nrte_publications:subscription_init_link_terminate(<<"eventsource">>, TopicList),
             Req2 = cowboy_req:stream_reply(200, #{<<"content-type">> => ?CONTENT_TYPE}, Req),
             {cowboy_loop, Req2, Opts};
         {unauthorized, Req2} ->

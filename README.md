@@ -91,6 +91,17 @@ ok
 <<"example;my-message">>
 ```
 
+## Subscription publications
+
+When a client connects to the `/websocket` or `/eventsource` endpoints, a special message will be published to the topic `nrte:subscription_init:{{source}}` with the client subscribed topics as message. When a client disconnects from that endpoint, a similar message will be published as `nrte:subscription_terminate:{{source}}`. It is then possible to subscribe to these special topics and receive the messages. For example:
+```erl
+{nrte_message,<<"nrte:subscription_init:websocket;topic1">>}
+{nrte_message,<<"nrte:subscription_terminate:websocket;topic1">>}
+
+{nrte_message,<<"nrte:subscription_init:eventsource;topic1;topic2;topic3">>}
+{nrte_message,<<"nrte:subscription_terminate:eventsource;topic1;topic2;topic3">>}
+```
+
 ## Support
 
 Any doubt or suggestion? Please, check out [our issue tracker](https://github.com/nomasystems/nrte/issues).
