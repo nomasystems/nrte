@@ -30,6 +30,8 @@ all() ->
         connect_forbidden_subscription,
         connect_unauthorized,
         coverage_completion,
+        receive_subscription_init,
+        receive_subscription_terminate,
         receive_topic_message,
         send_text,
         send_unsupported_text
@@ -92,6 +94,34 @@ coverage_completion() ->
 
 coverage_completion(_Conf) ->
     _ = nrte_websocket:websocket_info(dummy, state).
+
+receive_subscription_init() ->
+    [{userdata, [{doc, "Tests receiving the special subscription init message"}]}].
+
+receive_subscription_init(_Conf) ->
+    Subscription = <<"nrte:subscription_init:websocket">>,
+    ok = nrte:subscribe([Subscription]),
+    {ok, {Pid, _StreamRef}} = connect_ws(),
+    ExpectedMessage = <<Subscription/binary, ";", ?TOPIC>>,
+    receive
+        {nrte_message, ExpectedMessage} -> ok
+    after 1000 -> throw(timeout)
+    end,
+    gun:close(Pid).
+
+receive_subscription_terminate() ->
+    [{userdata, [{doc, "Tests receiving the special subscription terminate message"}]}].
+
+receive_subscription_terminate(_Conf) ->
+    Subscription = <<"nrte:subscription_terminate:websocket">>,
+    ok = nrte:subscribe([Subscription]),
+    {ok, {Pid, _StreamRef}} = connect_ws(),
+    gun:close(Pid),
+    ExpectedMessage = <<Subscription/binary, ";", ?TOPIC>>,
+    receive
+        {nrte_message, ExpectedMessage} -> ok
+    after 1000 -> throw(timeout)
+    end.
 
 receive_topic_message() ->
     [{userdata, [{doc, "Tests receiving a published topic message"}]}].

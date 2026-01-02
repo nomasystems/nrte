@@ -24,7 +24,8 @@ init(Req, Opts) ->
     case nrte_auth:authorization(Req, subscribe) of
         {authorized, TopicList} ->
             nrte:subscribe(TopicList),
-            {cowboy_websocket, Req, []};
+            nrte_publications:subscription_init_link_terminate(<<"websocket">>, TopicList),
+            {cowboy_websocket, Req, Opts};
         {unauthorized, Req2} ->
             {stop, Req2, Opts}
     end.

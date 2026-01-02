@@ -26,6 +26,8 @@ all() ->
         connect_authorized_pattern,
         connect_forbidden_pattern,
         connect_unauthorized,
+        receive_subscription_init,
+        receive_subscription_terminate,
         receive_topic_message
     ].
 
@@ -80,6 +82,36 @@ connect_unauthorized(_Conf) ->
     unauthorized = connect_es("topic1;topic2;topic3"),
     application:unset_env(nrte, auth_type),
     ok.
+
+receive_subscription_init() ->
+    [{userdata, [{doc, "Tests receiving the special subscription init message"}]}].
+
+receive_subscription_init(_Conf) ->
+    Subscription = <<"nrte:subscription_init:eventsource">>,
+    ok = nrte:subscribe([Subscription]),
+    Topics = <<"topic1;topic2;topic3">>,
+    {ok, {Pid, _StreamRef}} = connect_es(Topics),
+    ExpectedMessage = <<Subscription/binary, ";", Topics/binary>>,
+    receive
+        {nrte_message, ExpectedMessage} -> ok
+    after 1000 -> throw(timeout)
+    end,
+    gun:close(Pid).
+
+receive_subscription_terminate() ->
+    [{userdata, [{doc, "Tests receiving the special subscription terminate message"}]}].
+
+receive_subscription_terminate(_Conf) ->
+    Subscription = <<"nrte:subscription_terminate:eventsource">>,
+    ok = nrte:subscribe([Subscription]),
+    Topics = <<"topic1;topic2;topic3">>,
+    {ok, {Pid, _StreamRef}} = connect_es(Topics),
+    gun:close(Pid),
+    ExpectedMessage = <<Subscription/binary, ";", Topics/binary>>,
+    receive
+        {nrte_message, ExpectedMessage} -> ok
+    after 1000 -> throw(timeout)
+    end.
 
 receive_topic_message() ->
     [{userdata, [{doc, "Tests receiving a published topic message"}]}].
