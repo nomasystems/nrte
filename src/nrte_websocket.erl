@@ -15,7 +15,7 @@
 -behaviour(cowboy_websocket).
 
 %%% COWBOY WEBSOCKET EXPORTS
--export([init/2, websocket_handle/2, websocket_info/2]).
+-export([init/2, websocket_init/1, websocket_handle/2, websocket_info/2]).
 
 %%%-----------------------------------------------------------------------------
 %%% COWBOY WEBSOCKET EXPORTS
@@ -23,12 +23,15 @@
 init(Req, Opts) ->
     case nrte_auth:authorization(Req, subscribe) of
         {authorized, TopicList} ->
-            nrte:subscribe(TopicList),
-            nrte_publications:subscription_init_link_terminate(<<"websocket">>, TopicList),
-            {cowboy_websocket, Req, Opts};
+            {cowboy_websocket, Req, Opts#{topic_list => TopicList}};
         {unauthorized, Req2} ->
             {stop, Req2, Opts}
     end.
+
+websocket_init(#{topic_list := TopicList} = State) ->
+    nrte:subscribe(TopicList),
+    nrte_publications:subscription_init_link_terminate(<<"websocket">>, TopicList),
+    {ok, State}.
 
 websocket_handle(_Data, State) ->
     {ok, State}.

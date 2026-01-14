@@ -76,6 +76,7 @@
 
       eventSource.onmessage = function (event) {
         showMessage("EventSource received: " + event.data);
+        updateMessageCount();
       };
 
       eventSource.onerror = function (event) {
@@ -86,14 +87,11 @@
     function connectWebSocket() {
       disconnect();
 
-      const uri = `ws://localhost:2080/websocket`;
+      const uri = `ws://localhost:2080/websocket?topics=topic1;topic2;topic3`;
 
       webSocket = new WebSocket(uri);
-      messageCount = 0;
-
       webSocket.onopen = function(event) {
         showMessage("WebSocket connected");
-        webSocket.send("topics: topic1;topic2;topic4");
       };
 
       webSocket.onmessage = function(event) {
@@ -117,6 +115,9 @@
         eventSource = null;
         showMessage("EventSource disconnected");
       }
+
+      messageCount = -1;
+      updateMessageCount();
     }
 
     function showMessage(message) {
