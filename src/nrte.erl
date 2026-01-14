@@ -26,7 +26,7 @@
 start(_, _) ->
     BaseRoutes = [
         {"/eventsource", nrte_eventsource, []},
-        {"/websocket", nrte_websocket, []},
+        {"/websocket", nrte_websocket, #{}},
         {"/[...]", nrte_rest, []}
     ],
     Routes =
