@@ -133,12 +133,12 @@ post_empty_body() ->
     [{userdata, [{doc, "Tests posting an empty body"}]}].
 
 post_empty_body(_Conf) ->
-    ebus:sub(self(), "topic"),
+    ok = nrte:subscribe([<<"topic">>]),
     {ok, Pid} = gun:open("localhost", 2080),
     {ok, http} = gun:await_up(Pid),
     StreamRef = gun:post(Pid, "/message?topics=topic", #{}, <<>>),
     {response, _, 200, _Headers} = gun:await(Pid, StreamRef, 1000),
-    [<<>>] = ebus_proc:messages(self()),
+    ok = nrte_receive(<<"topic">>, <<>>),
     ok = gun:close(Pid).
 
 post_no_topic() ->
@@ -156,12 +156,12 @@ post_topic_all_authorized() ->
 
 post_topic_all_authorized(_Conf) ->
     application:set_env(nrte, auth_type, {always_allow, all}),
-    ebus:sub(self(), "topic"),
+    ok = nrte:subscribe([<<"topic">>]),
     {ok, Pid} = gun:open("localhost", 2080),
     {ok, http} = gun:await_up(Pid),
     StreamRef = gun:post(Pid, "/message?topics=topic", ?HEADERS, ?TEXT),
     {response, fin, 200, _Headers} = gun:await(Pid, StreamRef, 1000),
-    [?TEXT] = ebus_proc:messages(self()),
+    ok = nrte_receive(<<"topic">>, ?TEXT),
     application:unset_env(nrte, auth_type),
     ok = gun:close(Pid).
 
@@ -169,12 +169,12 @@ post_topic_message() ->
     [{userdata, [{doc, "Tests posting a topic message"}]}].
 
 post_topic_message(_Conf) ->
-    ebus:sub(self(), "topic"),
+    ok = nrte:subscribe([<<"topic">>]),
     {ok, Pid} = gun:open("localhost", 2080),
     {ok, http} = gun:await_up(Pid),
     StreamRef = gun:post(Pid, "/message?topics=topic", ?HEADERS, ?TEXT),
     {response, fin, 200, _Headers} = gun:await(Pid, StreamRef, 1000),
-    [?TEXT] = ebus_proc:messages(self()),
+    ok = nrte_receive(<<"topic">>, ?TEXT),
     ok = gun:close(Pid).
 
 post_topic_with_subtopics() ->
@@ -185,12 +185,12 @@ post_topic_with_subtopics(_Conf) ->
     ExpectedTopicPubs = [
         Topic, <<"topic:subtopic:subsubtopic">>, <<"topic:subtopic">>, <<"topic">>
     ],
-    ok = lists:foreach(fun(T) -> ebus:sub(self(), T) end, ExpectedTopicPubs),
+    ok = nrte:subscribe(ExpectedTopicPubs),
     {ok, Pid} = gun:open("localhost", 2080),
     {ok, http} = gun:await_up(Pid),
     StreamRef = gun:post(Pid, ["/message?topics=", Topic], ?HEADERS, ?TEXT),
     {response, fin, 200, _Headers} = gun:await(Pid, StreamRef, 1000),
-    true = length(ExpectedTopicPubs) =:= length(ebus_proc:messages(self())),
+    true = lists:all(fun(_Topic) -> nrte_receive(Topic, ?TEXT) == ok end, ExpectedTopicPubs),
     ok = gun:close(Pid).
 
 %%%-----------------------------------------------------------------------------
@@ -200,4 +200,11 @@ nrte_auth(Headers) ->
     case maps:is_key(<<"authorization">>, Headers) of
         true -> #{allowed_publications => all};
         false -> unauthorized
+    end.
+
+nrte_receive(Topic, Body) ->
+    ExpectedMessage = <<Topic/binary, ";", Body/binary>>,
+    receive
+        {nrte_message, ExpectedMessage} -> ok
+    after 1000 -> throw(timeout)
     end.

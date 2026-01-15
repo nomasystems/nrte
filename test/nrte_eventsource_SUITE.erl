@@ -118,7 +118,7 @@ receive_topic_message() ->
 
 receive_topic_message(_Conf) ->
     {ok, {Pid, StreamRef}} = connect_es("topic"),
-    ebus:pub(<<"topic">>, <<"message">>),
+    ok = nrte:publish(<<"topic">>, <<"message">>),
     {sse, #{data := [<<"topic;message">>]}} = gun:await(Pid, StreamRef, 1000),
     ok = gun:close(Pid).
 

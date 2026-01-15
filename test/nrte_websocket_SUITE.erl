@@ -133,7 +133,7 @@ receive_topic_message(_Conf) ->
     ok = gun:ws_send(Pid, StreamRef, ping),
     % Wait for pong to ensure the server processed the topic subscription
     {ws, pong} = gun:await(Pid, StreamRef),
-    ebus:pub(?TOPIC, <<"message">>),
+    ok = nrte:publish(<<?TOPIC>>, <<"message">>),
     {ws, {text, <<?TOPIC, ";message">>}} = gun:await(Pid, StreamRef),
     ok = gun:close(Pid).
 

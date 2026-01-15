@@ -50,7 +50,7 @@ stop(_) ->
 -spec publish(binary(), binary()) -> ok.
 publish(Topic, Message) ->
     ExpandedTopics = expand_topic(Topic),
-    lists:foreach(fun(T) -> ebus:pub(T, Message) end, ExpandedTopics).
+    lists:foreach(fun(T) -> ebus:pub(T, {Topic, Message}) end, ExpandedTopics).
 
 -spec subscribe([iodata()]) -> ok.
 subscribe(TopicList) ->
