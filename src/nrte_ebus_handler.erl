@@ -17,7 +17,7 @@
 -export([subscribe/1]).
 
 %%% CALLBACK EXPORTS
--export([handle_message/3]).
+-export([handle_message/2]).
 
 %%%-----------------------------------------------------------------------------
 %%% EXTERNAL EXPORTS
@@ -25,7 +25,7 @@
 subscribe(TopicList) ->
     lists:foreach(
         fun(Topic) ->
-            Handler = ebus_proc:spawn_handler(fun ?MODULE:handle_message/3, [Topic, self()], [link]),
+            Handler = ebus_proc:spawn_handler(fun ?MODULE:handle_message/2, [self()], [link]),
             ebus:sub(Handler, Topic)
         end,
         TopicList
@@ -34,9 +34,9 @@ subscribe(TopicList) ->
 %%%-----------------------------------------------------------------------------
 %%% CALLBACK EXPORTS
 %%%-----------------------------------------------------------------------------
-handle_message(Message, Topic, Pid) ->
+handle_message({SourceTopic, Message}, Pid) ->
     Template = nrte_conf:data_template(),
-    Replacements = [{<<"{{message}}">>, Message}, {<<"{{topic}}">>, Topic}],
+    Replacements = [{<<"{{message}}">>, Message}, {<<"{{topic}}">>, SourceTopic}],
     Data = lists:foldl(
         fun({Original, Replacement}, Acc) ->
             binary:replace(Acc, Original, Replacement, [global])

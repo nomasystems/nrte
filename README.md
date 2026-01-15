@@ -84,11 +84,11 @@ Messages can also be published via `nrte:publish/2` and subscribed from `nrte:su
 > nrte:subscribe([<<"example">>]).
 ok
 
-> nrte:publish(<<"example">>, <<"my-message">>).
+> nrte:publish(<<"example:subexample">>, <<"my-message">>).
 ok
 
 > receive {nrte_message, Data} -> Data end.
-<<"example;my-message">>
+<<"example:subexample;my-message">>
 ```
 
 ## Subscription publications
