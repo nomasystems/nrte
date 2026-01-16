@@ -24,7 +24,7 @@
 %%% COWBOY LOOP EXPORTS
 %%%-----------------------------------------------------------------------------
 init(Req, Opts) ->
-    case nrte_auth:authorization(Req, subscribe) of
+    case nrte_auth:authorization(Req, Opts, subscribe) of
         {authorized, TopicList} ->
             nrte:subscribe(TopicList),
             nrte_publications:subscription_init_link_terminate(<<"eventsource">>, TopicList),

@@ -21,7 +21,7 @@
 %%% COWBOY HANDLER EXPORTS
 %%%-----------------------------------------------------------------------------
 init(Req, Opts) ->
-    case nrte_auth:authorization(Req, publish) of
+    case nrte_auth:authorization(Req, Opts, publish) of
         {authorized, TopicList} ->
             init_authorized(Req, Opts, TopicList);
         {unauthorized, Req2} ->

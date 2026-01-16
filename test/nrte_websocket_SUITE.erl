@@ -44,12 +44,15 @@ suite() ->
 %%% INIT SUITE EXPORTS
 %%%-----------------------------------------------------------------------------
 init_per_suite(Conf) ->
-    nct_util:setup_suite(Conf).
+    Conf2 = nct_util:setup_suite(Conf),
+    {ok, _} = nrte:start_listening(),
+    Conf2.
 
 %%%-----------------------------------------------------------------------------
 %%% END SUITE EXPORTS
 %%%-----------------------------------------------------------------------------
 end_per_suite(Conf) ->
+    ok = nrte:stop_listening(),
     nct_util:teardown_suite(Conf).
 
 %%%-----------------------------------------------------------------------------
@@ -66,28 +69,35 @@ connect_authorized_explicitly() ->
     [{userdata, [{doc, "Tests connecting to the websocket with explicit authorization"}]}].
 
 connect_authorized_explicitly(_Conf) ->
-    application:set_env(nrte, auth_type, {auth_mod, ?MODULE}),
-    {ok, {Pid, _StreamRef}} = connect_ws(),
-    application:unset_env(nrte, auth_type),
-    ok = gun:close(Pid).
+    {Name, Port} = {nrte_eventsource_connect_auth, 2081},
+    {ok, _} = nrte:start_listening(#{name => Name, port => Port, auth_type => {auth_mod, ?MODULE}}),
+    {ok, {Pid, _StreamRef}} = connect_ws(Port),
+    ok = gun:close(Pid),
+    ok = nrte:stop_listening(Name).
 
 connect_forbidden_subscription() ->
     [{userdata, [{doc, "Tests connecting to the websocket without subscription authorization"}]}].
 
 connect_forbidden_subscription(_Conf) ->
-    application:set_env(nrte, auth_type, {always_allow, #{allowed_publications => all}}),
-    forbidden = connect_ws(),
-    application:unset_env(nrte, auth_type),
-    ok.
+    {Name, Port} = {nrte_eventsource_connect_auth, 2081},
+    {ok, _} = nrte:start_listening(#{
+        name => Name,
+        port => Port,
+        auth_type => {always_allow, #{allowed_publications => all}}
+    }),
+    forbidden = connect_ws(Port),
+    ok = nrte:stop_listening(Name).
 
 connect_unauthorized() ->
     [{userdata, [{doc, "Tests connecting to the websocket without authorization"}]}].
 
 connect_unauthorized(_Conf) ->
-    application:set_env(nrte, auth_type, {always_allow, unauthorized}),
-    unauthorized = connect_ws(),
-    application:unset_env(nrte, auth_type),
-    ok.
+    {Name, Port} = {nrte_eventsource_connect_auth, 2081},
+    {ok, _} = nrte:start_listening(#{
+        name => Name, port => Port, auth_type => {always_allow, unauthorized}
+    }),
+    unauthorized = connect_ws(Port),
+    ok = nrte:stop_listening(Name).
 
 coverage_completion() ->
     [{userdata, [{doc, "Ensure coverage completion by sending a direct info message"}]}].
@@ -157,8 +167,11 @@ send_unsupported_text(_Conf) ->
 %%% INTERNAL FUNCTIONS
 %%%-----------------------------------------------------------------------------
 connect_ws() ->
+    connect_ws(2080).
+
+connect_ws(Port) ->
     Protocol = http2,
-    {ok, Pid} = gun:open("localhost", 2080, #{
+    {ok, Pid} = gun:open("localhost", Port, #{
         ws_opts => #{silence_pings => false},
         protocols => [Protocol],
         http2_opts => #{notify_settings_changed => true}
