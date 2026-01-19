@@ -1,6 +1,6 @@
 # nrte
 
-An OTP application to send and receive real time events over HTTP connections.
+An OTP library to send and receive real time events over HTTP connections.
 
 ## Status
 [![GitHub branch checks state](https://github.com/nomasystems/nrte/actions/workflows/ci.yml/badge.svg)](https://github.com/nomasystems/nrte/actions/workflows/ci.yml)
@@ -17,6 +17,11 @@ In your `rebar.config` file, add the dependency:
 {deps, [
     {nrte, {git, "git@github.com:nomasystems/nrte.git", {branch, "main"}}}
 ]}.
+```
+
+And start listening to incoming connections:
+```erl
+nrte:start_listening(#{} = Opts).
 ```
 
 Then, you can connect either via WebSocket or server-sent events to start receiving messages for the given topics.
@@ -38,24 +43,26 @@ curl -X POST -d 'my custom message' 'localhost:2080/message?topics=topic1'
 
 ## Configuration
 
-`nrte` defaults to the following configuration values:
+All the keys in the `nrte:start_listening/1` parameter are optional and default to the following values:
 ```erl
-[
-  {auth_type, {always_allow, all}},
-  {data_template, {<<"{{topic}};{{message}}">>}},
-  {port, 2080},
-  {serve_priv_dir, false}
-]
+#{
+  auth_type => {always_allow, all}},
+  name => nrte_listener,
+  port => 2080,
+  serve_priv_dir => false
+}
 ```
 
 * `auth_type`: see [authentication](#authentication) for details.
-* `data_template`: a template for sending the data through the http connections. Both `{{topic}}` and `{{message}}` are optional and will be replaced with the actual values.
+* `name`: a unique name to be registered as the server.
 * `port`: TCP port that serves the different endpoints.
 * `serve_priv_dir`: whether to include the [priv dir](/priv/) in the server or not.
 
+It's also possible to define a global `data_template` with `application:set_env(nrte, data_template, Template)`. Defaults to `{data_tempate, {<<"{{topic}};{{message}}">>}}` and any appearance of `{{topic}}` and `{{message}}` are replaced with the actual values.
+
 ## Authentication
 
-By default nrte doesn't authenticate its users, but this can be changed by setting the `auth_type` configuration parameter to a tuple `{auth_mod, Mod}`. In that case, when a request arrives, `nrte` will call `Mod:nrte_auth(Headers)` and use the returned `nrte_auth_value()` to allow or deny access to the resource. See the [`nrte_auth` module](/src/nrte_auth.erl) for the behaviour to implement.
+By default nrte doesn't authenticate its users, but this can be changed by setting the `auth_type` option to a tuple `{auth_mod, Mod}`. In that case, when a request arrives, `nrte` will call `Mod:nrte_auth(Headers)` and use the returned `nrte_auth_value()` to allow or deny access to the resource. See the [`nrte_auth` module](/src/nrte_auth.erl) for the behaviour to implement.
 
 Some examples:
 ```erl

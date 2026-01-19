@@ -15,23 +15,27 @@
 
 %%% EXTERNAL EXPORTS
 -export([
-    auth_type/0,
+    auth_type/1,
     data_template/0,
-    port/0,
-    serve_priv_dir/0
+    name/1,
+    port/1,
+    serve_priv_dir/1
 ]).
 
 %%%-----------------------------------------------------------------------------
 %%% EXTERNAL EXPORTS
 %%%-----------------------------------------------------------------------------
-auth_type() ->
-    application:get_env(nrte, auth_type, {always_allow, all}).
+auth_type(Opts) ->
+    maps:get(auth_type, Opts, {always_allow, all}).
 
 data_template() ->
     application:get_env(nrte, data_template, <<"{{topic}};{{message}}">>).
 
-port() ->
-    application:get_env(nrte, port, 2080).
+name(Opts) ->
+    maps:get(name, Opts, nrte_listener).
 
-serve_priv_dir() ->
-    application:get_env(nrte, serve_priv_dir, false).
+port(Opts) ->
+    maps:get(port, Opts, 2080).
+
+serve_priv_dir(Opts) ->
+    maps:get(serve_priv_dir, Opts, false).

@@ -38,12 +38,15 @@ suite() ->
 %%% INIT SUITE EXPORTS
 %%%-----------------------------------------------------------------------------
 init_per_suite(Conf) ->
-    nct_util:setup_suite(Conf).
+    Conf2 = nct_util:setup_suite(Conf),
+    {ok, _} = nrte:start_listening(),
+    Conf2.
 
 %%%-----------------------------------------------------------------------------
 %%% END SUITE EXPORTS
 %%%-----------------------------------------------------------------------------
 end_per_suite(Conf) ->
+    ok = nrte:stop_listening(),
     nct_util:teardown_suite(Conf).
 
 %%%-----------------------------------------------------------------------------
@@ -60,28 +63,31 @@ connect_authorized_pattern() ->
     [{userdata, [{doc, "Tests connecting to the event source with an authorized pattern"}]}].
 
 connect_authorized_pattern(_Conf) ->
-    application:set_env(nrte, auth_type, {auth_mod, ?MODULE}),
-    {ok, {Pid, _StreamRef}} = connect_es("auth-allowed"),
-    application:unset_env(nrte, auth_type),
-    ok = gun:close(Pid).
+    {Name, Port} = {nrte_eventsource_connect_auth, 2081},
+    {ok, _} = nrte:start_listening(#{name => Name, port => Port, auth_type => {auth_mod, ?MODULE}}),
+    {ok, {Pid, _StreamRef}} = connect_es("auth-allowed", Port),
+    ok = gun:close(Pid),
+    ok = nrte:stop_listening(Name).
 
 connect_forbidden_pattern() ->
     [{userdata, [{doc, "Tests being forbidden from connecting to the event source"}]}].
 
 connect_forbidden_pattern(_Conf) ->
-    application:set_env(nrte, auth_type, {auth_mod, ?MODULE}),
-    forbidden = connect_es("auth-allowed;noauth-noallowed"),
-    application:unset_env(nrte, auth_type),
-    ok.
+    {Name, Port} = {nrte_eventsource_connect_auth, 2081},
+    {ok, _} = nrte:start_listening(#{name => Name, port => Port, auth_type => {auth_mod, ?MODULE}}),
+    forbidden = connect_es("auth-allowed;noauth-noallowed", Port),
+    ok = nrte:stop_listening(Name).
 
 connect_unauthorized() ->
     [{userdata, [{doc, "Tests unauthorized connecting to the event source"}]}].
 
 connect_unauthorized(_Conf) ->
-    application:set_env(nrte, auth_type, {always_allow, unauthorized}),
-    unauthorized = connect_es("topic1;topic2;topic3"),
-    application:unset_env(nrte, auth_type),
-    ok.
+    {Name, Port} = {nrte_eventsource_connect_auth, 2081},
+    {ok, _} = nrte:start_listening(#{
+        name => Name, port => Port, auth_type => {always_allow, unauthorized}
+    }),
+    unauthorized = connect_es("topic1;topic2;topic3", Port),
+    ok = nrte:stop_listening(Name).
 
 receive_subscription_init() ->
     [{userdata, [{doc, "Tests receiving the special subscription init message"}]}].
@@ -129,8 +135,11 @@ nrte_auth(_) ->
     #{allowed_subscriptions => [<<"auth.*">>]}.
 
 connect_es(Topics) ->
+    connect_es(Topics, 2080).
+
+connect_es(Topics, Port) ->
     Protocol = http2,
-    {ok, Pid} = gun:open("localhost", 2080, #{
+    {ok, Pid} = gun:open("localhost", Port, #{
         protocols => [Protocol],
         http2_opts => #{content_handlers => [gun_sse_h, gun_data_h]}
     }),

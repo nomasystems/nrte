@@ -46,12 +46,15 @@ suite() ->
 %%% INIT SUITE EXPORTS
 %%%-----------------------------------------------------------------------------
 init_per_suite(Conf) ->
-    nct_util:setup_suite(Conf).
+    Conf2 = nct_util:setup_suite(Conf),
+    {ok, _} = nrte:start_listening(),
+    Conf2.
 
 %%%-----------------------------------------------------------------------------
 %%% END SUITE EXPORTS
 %%%-----------------------------------------------------------------------------
 end_per_suite(Conf) ->
+    ok = nrte:stop_listening(),
     nct_util:teardown_suite(Conf).
 
 %%%-----------------------------------------------------------------------------
@@ -61,17 +64,14 @@ get_priv_dir() ->
     [{userdata, [{doc, "Tests getting a file from the priv dir"}]}].
 
 get_priv_dir(_Conf) ->
-    application:set_env(nrte, serve_priv_dir, true),
-    application:stop(nrte),
-    application:start(nrte),
-    {ok, Pid} = gun:open("localhost", 2080),
+    {Name, Port} = {nrte_rest_priv_dir, 3080},
+    {ok, _} = nrte:start_listening(#{name => Name, port => Port, serve_priv_dir => true}),
+    {ok, Pid} = gun:open("localhost", Port),
     {ok, http} = gun:await_up(Pid),
     StreamRef = gun:get(Pid, "/priv/tester.html"),
     {response, _, 200, _} = gun:await(Pid, StreamRef, 1000),
-    application:unset_env(nrte, serve_priv_dir),
-    application:stop(nrte),
-    application:start(nrte),
-    ok.
+    ok = gun:close(Pid),
+    ok = nrte:stop_listening(Name).
 
 get_priv_dir_404() ->
     [{userdata, [{doc, "Tests not getting a file from the priv dir with the default conf"}]}].
@@ -81,31 +81,35 @@ get_priv_dir_404(_Conf) ->
     {ok, http} = gun:await_up(Pid),
     StreamRef = gun:get(Pid, "/priv/tester.html"),
     {response, _, 404, _} = gun:await(Pid, StreamRef, 1000),
-    ok.
+    ok = gun:close(Pid).
 
 get_unauthorized() ->
     [{userdata, [{doc, "Tests getting an unauthorized path"}]}].
 
 get_unauthorized(_Conf) ->
-    application:set_env(nrte, auth_type, {always_allow, unauthorized}),
-    {ok, Pid} = gun:open("localhost", 2080),
+    {Name, Port} = {nrte_rest_unauthorized, 3081},
+    {ok, _} = nrte:start_listening(#{
+        name => Name, port => Port, auth_type => {always_allow, unauthorized}
+    }),
+    {ok, Pid} = gun:open("localhost", Port),
     {ok, http} = gun:await_up(Pid),
     StreamRef = gun:get(Pid, "/auth"),
     {response, fin, 401, _Headers} = gun:await(Pid, StreamRef, 1000),
-    application:unset_env(nrte, auth_type),
-    ok.
+    ok = gun:close(Pid),
+    ok = nrte:stop_listening(Name).
 
 get_unauthorized_via_auth_mod() ->
     [{userdata, [{doc, "Tests getting an unauthorized path with auth mod"}]}].
 
 get_unauthorized_via_auth_mod(_Conf) ->
-    application:set_env(nrte, auth_type, {auth_mod, ?MODULE}),
-    {ok, Pid} = gun:open("localhost", 2080),
+    {Name, Port} = {nrte_rest_auth_mod, 3082},
+    {ok, _} = nrte:start_listening(#{name => Name, port => Port, auth_type => {auth_mod, ?MODULE}}),
+    {ok, Pid} = gun:open("localhost", Port),
     {ok, http} = gun:await_up(Pid),
     StreamRef = gun:get(Pid, "/auth"),
     {response, fin, 401, _Headers} = gun:await(Pid, StreamRef, 1000),
-    application:unset_env(nrte, auth_type),
-    ok.
+    ok = gun:close(Pid),
+    ok = nrte:stop_listening(Name).
 
 get_undocumented_path() ->
     [{userdata, [{doc, "Tests getting an undocumented path"}]}].
@@ -115,19 +119,20 @@ get_undocumented_path(_Conf) ->
     {ok, http} = gun:await_up(Pid),
     StreamRef = gun:get(Pid, "/undocumented"),
     {response, fin, 404, _Headers} = gun:await(Pid, StreamRef, 1000),
-    ok.
+    ok = gun:close(Pid).
 
 get_undocumented_path_via_auth_mod() ->
     [{userdata, [{doc, "Tests getting an undocumented path with auth mod"}]}].
 
 get_undocumented_path_via_auth_mod(_Conf) ->
-    application:set_env(nrte, auth_type, {auth_mod, ?MODULE}),
-    {ok, Pid} = gun:open("localhost", 2080),
+    {Name, Port} = {nrte_rest_auth_mod, 3083},
+    {ok, _} = nrte:start_listening(#{name => Name, port => Port, auth_type => {auth_mod, ?MODULE}}),
+    {ok, Pid} = gun:open("localhost", Port),
     {ok, http} = gun:await_up(Pid),
     StreamRef = gun:get(Pid, "/undocumented", [{<<"authorization">>, <<"some">>}]),
     {response, fin, 404, _Headers} = gun:await(Pid, StreamRef, 1000),
-    application:unset_env(nrte, auth_type),
-    ok.
+    ok = gun:close(Pid),
+    ok = nrte:stop_listening(Name).
 
 post_empty_body() ->
     [{userdata, [{doc, "Tests posting an empty body"}]}].
@@ -149,21 +154,22 @@ post_no_topic(_Conf) ->
     {ok, http} = gun:await_up(Pid),
     StreamRef = gun:post(Pid, "/message", #{}, ?TEXT),
     {response, _, 400, _Headers} = gun:await(Pid, StreamRef, 1000),
-    ok.
+    ok = gun:close(Pid).
 
 post_topic_all_authorized() ->
     [{userdata, [{doc, "Tests posting a topic message with all publications auth"}]}].
 
 post_topic_all_authorized(_Conf) ->
-    application:set_env(nrte, auth_type, {always_allow, all}),
+    {Name, Port} = {nrte_rest_allow_all, 3084},
+    {ok, _} = nrte:start_listening(#{name => Name, port => Port, auth_type => {always_allow, all}}),
     ok = nrte:subscribe([<<"topic">>]),
-    {ok, Pid} = gun:open("localhost", 2080),
+    {ok, Pid} = gun:open("localhost", Port),
     {ok, http} = gun:await_up(Pid),
     StreamRef = gun:post(Pid, "/message?topics=topic", ?HEADERS, ?TEXT),
     {response, fin, 200, _Headers} = gun:await(Pid, StreamRef, 1000),
     ok = nrte_receive(<<"topic">>, ?TEXT),
-    application:unset_env(nrte, auth_type),
-    ok = gun:close(Pid).
+    ok = gun:close(Pid),
+    ok = nrte:stop_listening(Name).
 
 post_topic_message() ->
     [{userdata, [{doc, "Tests posting a topic message"}]}].

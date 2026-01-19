@@ -21,7 +21,7 @@
 %%% COWBOY WEBSOCKET EXPORTS
 %%%-----------------------------------------------------------------------------
 init(Req, Opts) ->
-    case nrte_auth:authorization(Req, subscribe) of
+    case nrte_auth:authorization(Req, Opts, subscribe) of
         {authorized, TopicList} ->
             {cowboy_websocket, Req, Opts#{topic_list => TopicList}};
         {unauthorized, Req2} ->

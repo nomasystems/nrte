@@ -12,36 +12,52 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License
 -module(nrte).
--behaviour(application).
 
-%%% APPLICATION EXPORTS
--export([start/2, stop/1]).
+%%% START/STOP SERVER EXPORTS
+-export([start_listening/0, start_listening/1, stop_listening/0, stop_listening/1]).
 
 %%% EXTERNAL EXPORTS
 -export([publish/2, subscribe/1]).
 
+%%% TYPES
+-type opts() :: #{
+    auth_type => {always_allow, nrte_auth:nrte_auth_value()} | {auth_mod, atom()},
+    name => atom(),
+    port => pos_integer(),
+    serve_priv_dir => boolean()
+}.
+
 %%%-----------------------------------------------------------------------------
 %%% APPLICATION EXPORTS
 %%%-----------------------------------------------------------------------------
-start(_, _) ->
+-spec start_listening() -> {ok, pid()} | {error, any()}.
+start_listening() ->
+    start_listening(#{}).
+
+-spec start_listening(opts()) -> {ok, pid()} | {error, any()}.
+start_listening(Opts) ->
     BaseRoutes = [
-        {"/eventsource", nrte_eventsource, []},
-        {"/websocket", nrte_websocket, #{}},
-        {"/[...]", nrte_rest, []}
+        {"/eventsource", nrte_eventsource, Opts},
+        {"/websocket", nrte_websocket, Opts},
+        {"/[...]", nrte_rest, Opts}
     ],
     Routes =
-        case nrte_conf:serve_priv_dir() of
+        case nrte_conf:serve_priv_dir(Opts) of
             true -> [{"/priv/[...]", cowboy_static, {priv_dir, nrte, ""}} | BaseRoutes];
             _ -> BaseRoutes
         end,
     Dispatch = cowboy_router:compile([{'_', Routes}]),
-    cowboy:start_clear(nrte_listener, [{port, nrte_conf:port()}], #{
+    cowboy:start_clear(nrte_conf:name(Opts), [{port, nrte_conf:port(Opts)}], #{
         enable_connect_protocol => true, env => #{dispatch => Dispatch}
-    }),
-    nrte_sup:start_link().
+    }).
 
-stop(_) ->
-    cowboy:stop_listener(nrte_listener),
+-spec stop_listening() -> ok.
+stop_listening() ->
+    stop_listening(nrte_conf:name(#{})).
+
+-spec stop_listening(atom()) -> ok.
+stop_listening(Name) ->
+    cowboy:stop_listener(Name),
     ok.
 
 %%%-----------------------------------------------------------------------------

@@ -14,18 +14,19 @@
 -module(nrte_auth).
 
 -type nrte_auth_value() :: unauthorized | all | none | [RegExp :: iodata()].
+-export_type([nrte_auth_value/0]).
 -callback nrte_auth(Headers :: #{binary() => binary()}) ->
     nrte_auth_value() | #{allowed_publications | allowed_subscriptions => nrte_auth_value()}.
 
 %%% EXTERNAL EXPORTS
--export([authorization/2]).
+-export([authorization/3]).
 
 %%%-----------------------------------------------------------------------------
 %%% EXTERNAL EXPORTS
 %%%-----------------------------------------------------------------------------
-authorization(Req, Type) ->
+authorization(Req, Opts, Type) ->
     AuthValue =
-        case nrte_conf:auth_type() of
+        case nrte_conf:auth_type(Opts) of
             {always_allow, Value} -> Value;
             {auth_mod, Mod} -> Mod:nrte_auth(maps:get(headers, Req))
         end,

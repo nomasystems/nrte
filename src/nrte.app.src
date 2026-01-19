@@ -1,8 +1,7 @@
 {application, nrte, [
-    {description, "An OTP application to send and receive real time events over HTTP connections"},
-    {vsn, "0.1.0"},
+    {description, "An OTP libary to send and receive real time events over HTTP connections"},
+    {vsn, "1.0.0"},
     {registered, []},
     {applications, [kernel, stdlib, cowboy, ebus, njson]},
-    {mod, {nrte, []}},
     {env, []}
 ]}.
