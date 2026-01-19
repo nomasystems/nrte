@@ -2,6 +2,6 @@
     {description, "An OTP libary to send and receive real time events over HTTP connections"},
     {vsn, "1.0.0"},
     {registered, []},
-    {applications, [kernel, stdlib, cowboy, ebus, njson]},
+    {applications, [kernel, stdlib, cowlib, ranch, cowboy, ebus, njson]},
     {env, []}
 ]}.
