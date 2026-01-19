@@ -21,7 +21,7 @@ In your `rebar.config` file, add the dependency:
 
 And start listening to incoming connections:
 ```erl
-nrte:start_listening(nrte_example, #{} = Opts).
+nrte:start_listening(#{} = Opts).
 ```
 
 Then, you can connect either via WebSocket or server-sent events to start receiving messages for the given topics.
