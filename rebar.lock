@@ -10,7 +10,7 @@
  {<<"ebus">>,{pkg,<<"erlbus">>,<<"0.3.0">>},0},
  {<<"nuid">>,
   {git,"https://github.com/nomasystems/nuid.git",
-       {ref,"524ed2d7f7afb9860abe836cb9a852fa800a0aed"}},
+       {ref,"a53bf4eb80000ccf91a87f1b184791365f1dc132"}},
   0},
  {<<"ranch">>,
   {git,"https://github.com/ninenines/ranch",
